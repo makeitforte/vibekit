@@ -13,13 +13,13 @@ export interface Tool {
 
 export const TOOLS: Tool[] = [
   {
-    id: "html-beautifier",
-    name: "HTML beautifier",
+    id: "html-downloader",
+    name: "HTML downloader",
     icon: "Code2",
     status: "active",
-    blurb: "Format messy markup into clean, indented HTML with syntax highlighting.",
-    tag: "Formatter",
-    href: "/tools/html-beautifier",
+    blurb: "Beautify messy markup and export it as a clean HTML or PDF file.",
+    tag: "Exporter",
+    href: "/tools/html_downloader",
     runs: "1.2k",
   },
   {

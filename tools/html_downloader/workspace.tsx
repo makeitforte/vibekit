@@ -3,8 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Sparkles, Copy, Download, FileCode, Eraser, Wand2, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { beautifyHTML } from "@/lib/beautify";
-import { highlightHTML } from "@/lib/highlight";
+import { beautifyHTML } from "./beautify";
+import { highlightHTML } from "./highlight";
 import { ResizableSplit } from "./resizable-split";
 
 // Fetch cross-origin images through our server proxy and replace src with
@@ -43,7 +43,7 @@ const SAMPLE =
 type IndentUnit = "  " | "    " | "\t";
 type ExportFormat = "html" | "pdf";
 
-export function BeautifierWorkspace() {
+export function DownloaderWorkspace() {
   const [input, setInput] = useState(SAMPLE);
   const [output, setOutput] = useState("");
   const [indent, setIndent] = useState<IndentUnit>("  ");
@@ -295,8 +295,8 @@ export function BeautifierWorkspace() {
           </svg>
         </div>
         <div>
-          <h1 className="bf-title">HTML beautifier</h1>
-          <p className="bf-subtitle">Paste raw markup, get clean indented HTML.</p>
+          <h1 className="bf-title">HTML downloader</h1>
+          <p className="bf-subtitle">Paste raw markup, beautify and export as HTML or PDF.</p>
         </div>
         <div className="bf-opts">
           <span className="seg-label">Indent</span>
