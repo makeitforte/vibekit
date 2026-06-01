@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Sparkles, Copy, Download, FileCode, Eraser, Wand2 } from "lucide-react";
+import { Sparkles, Copy, Download, FileCode, Eraser, Wand2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { beautifyHTML } from "@/lib/beautify";
 import { highlightHTML } from "@/lib/highlight";
@@ -11,6 +11,7 @@ const SAMPLE =
   '<section class="hero" data-active="true"><h1>Ship faster</h1><p>Your dev environment, with a mind of its own.</p><button onclick="run()">Brief an agent</button><!-- cta --><ul><li>One</li><li>Two</li></ul></section>';
 
 type IndentUnit = "  " | "    " | "\t";
+type ExportFormat = "html" | "pdf";
 
 export function BeautifierWorkspace() {
   const [input, setInput] = useState(SAMPLE);
@@ -18,6 +19,7 @@ export function BeautifierWorkspace() {
   const [indent, setIndent] = useState<IndentUnit>("  ");
   const [exportDialog, setExportDialog] = useState(false);
   const [filename, setFilename] = useState("formatted");
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("html");
   const gutterRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -36,7 +38,6 @@ export function BeautifierWorkspace() {
     });
   }, [input, indent]);
 
-  // Ctrl+Enter shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
@@ -57,7 +58,7 @@ export function BeautifierWorkspace() {
     toast.success("Copied", { description: `${output.length} characters copied.` });
   }, [output]);
 
-  const doExport = useCallback(() => {
+  const doExportHTML = useCallback(() => {
     const content = output || beautifyHTML(input, indent);
     const blob = new Blob([content], { type: "text/html" });
     const url = URL.createObjectURL(blob);
@@ -71,6 +72,100 @@ export function BeautifierWorkspace() {
     setExportDialog(false);
     toast.success("Exported", { description: `${a.download} downloaded.` });
   }, [output, input, indent, filename]);
+
+  const doExportPDF = useCallback(() => {
+    const content = output || beautifyHTML(input, indent);
+    const highlighted = highlightHTML(content);
+    const name = filename || "formatted";
+
+    const printDoc = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${name}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: #17171a;
+    background: #fff;
+    padding: 48px 56px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e2e7;
+  }
+  .logo {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: linear-gradient(135deg, #16a268, #22c97f);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo svg { display: block; }
+  .meta { font-size: 11px; color: #73737c; }
+  .meta strong { color: #17171a; font-weight: 600; }
+  pre {
+    white-space: pre;
+    overflow: visible;
+    word-break: break-all;
+  }
+  .tk-tag  { color: #0e7a4e; }
+  .tk-name { color: #17171a; }
+  .tk-attr { color: #117a4f; }
+  .tk-val  { color: #876200; }
+  .tk-cmt  { color: #a6a6ae; font-style: italic; }
+  .tk-txt  { color: #51515a; }
+  @page { margin: 2cm; size: A4; }
+  @media print {
+    body { padding: 0; }
+    header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 20 20" width="14" height="14" fill="none">
+      <path d="M3 7l4-4 3 3 3-3 4 4M3 13l4 4 3-3 3 3 4-4"
+        stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="meta">
+    <strong>${name}.html</strong> &nbsp;·&nbsp; ${content.split("\n").length} lines &nbsp;·&nbsp; Exported from VibeKit HTML Beautifier
+  </div>
+</header>
+<pre><code>${highlighted}</code></pre>
+</body>
+</html>`;
+
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) {
+      toast.error("Popup blocked", { description: "Allow popups for this site and try again." });
+      return;
+    }
+    printWindow.document.write(printDoc);
+    printWindow.document.close();
+    printWindow.focus();
+    // Give fonts time to load before triggering print
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 600);
+
+    setExportDialog(false);
+    toast.success("Print dialog opened", { description: "Choose 'Save as PDF' in your printer dialog." });
+  }, [output, input, indent, filename]);
+
+  const doExport = useCallback(() => {
+    if (exportFormat === "pdf") doExportPDF();
+    else doExportHTML();
+  }, [exportFormat, doExportPDF, doExportHTML]);
 
   const syncGutter = (e: React.UIEvent<HTMLTextAreaElement>) => {
     if (gutterRef.current) {
@@ -132,9 +227,7 @@ export function BeautifierWorkspace() {
             <div className="bf-empty-icon">
               <Wand2 size={20} />
             </div>
-            <p>
-              No output yet. Hit <b>Beautify</b> to format your markup.
-            </p>
+            <p>No output yet. Hit <b>Beautify</b> to format your markup.</p>
           </div>
         )}
       </div>
@@ -201,23 +294,59 @@ export function BeautifierWorkspace() {
           <div className="dlg" onClick={(e) => e.stopPropagation()}>
             <div className="dlg-body">
               <h3>Export file</h3>
-              <p className="dlg-desc">Download the formatted markup as a standalone HTML file.</p>
-              <label htmlFor="dlg-fn">File name</label>
-              <div className="dlg-field">
-                <input
-                  id="dlg-fn"
-                  autoFocus
-                  value={filename}
-                  onChange={(e) => setFilename(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ""))}
-                  onKeyDown={(e) => e.key === "Enter" && doExport()}
-                />
-                <span className="dlg-ext">.html</span>
+              <p className="dlg-desc">Download the formatted markup as a file.</p>
+
+              {/* Format selector */}
+              <label>Format</label>
+              <div className="dlg-format-row">
+                <button
+                  type="button"
+                  className={`dlg-format-btn${exportFormat === "html" ? " active" : ""}`}
+                  onClick={() => setExportFormat("html")}
+                >
+                  <FileCode size={16} />
+                  <span>.html</span>
+                  <span className="dlg-format-desc">Source file</span>
+                </button>
+                <button
+                  type="button"
+                  className={`dlg-format-btn${exportFormat === "pdf" ? " active" : ""}`}
+                  onClick={() => setExportFormat("pdf")}
+                >
+                  <FileText size={16} />
+                  <span>.pdf</span>
+                  <span className="dlg-format-desc">Print / share</span>
+                </button>
               </div>
+
+              {/* File name (HTML only) */}
+              {exportFormat === "html" && (
+                <>
+                  <label htmlFor="dlg-fn" style={{ marginTop: 14 }}>File name</label>
+                  <div className="dlg-field">
+                    <input
+                      id="dlg-fn"
+                      autoFocus
+                      value={filename}
+                      onChange={(e) => setFilename(e.target.value.replace(/[^a-zA-Z0-9-_]/g, ""))}
+                      onKeyDown={(e) => e.key === "Enter" && doExport()}
+                    />
+                    <span className="dlg-ext">.html</span>
+                  </div>
+                </>
+              )}
+
+              {exportFormat === "pdf" && (
+                <p className="dlg-pdf-note">
+                  Opens a print preview with syntax-highlighted code. Choose <strong>Save as PDF</strong> in your browser&apos;s print dialog.
+                </p>
+              )}
             </div>
             <div className="dlg-foot">
               <button className="btn btn-ghost" onClick={() => setExportDialog(false)} type="button">Cancel</button>
               <button className="btn btn-primary" onClick={doExport} type="button">
-                <Download size={15} /> Download
+                <Download size={15} />
+                {exportFormat === "pdf" ? "Open print preview" : "Download"}
               </button>
             </div>
           </div>
