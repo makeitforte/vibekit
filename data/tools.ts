@@ -23,6 +23,15 @@ export const TOOLS: Tool[] = [
     runs: "1.2k",
   },
   {
+    id: "html-bulk-downloader",
+    name: "HTML bulk downloader",
+    icon: "Files",
+    status: "active",
+    blurb: "Convert multiple HTML files to PDF and download them as a single ZIP archive.",
+    tag: "Exporter",
+    href: "/tools/html_bulk_downloader",
+  },
+  {
     id: "json-formatter",
     name: "JSON formatter",
     icon: "Braces",

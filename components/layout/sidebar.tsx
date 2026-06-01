@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Code2, Braces, Regex, Palette, GitCompare, Binary,
+  Code2, Braces, Regex, Palette, GitCompare, Binary, Files,
   GitCommitHorizontal, Sparkles, Wand2, Settings2, Search,
 } from "lucide-react";
 import { TOOLS, ASSIST } from "@/data/tools";
 import { cn } from "@/lib/cn";
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  Code2, Braces, Regex, Palette, GitCompare, Binary,
+  Code2, Braces, Regex, Palette, GitCompare, Binary, Files,
   GitCommitHorizontal, Sparkles, Wand2,
 };
 

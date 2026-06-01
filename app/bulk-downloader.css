@@ -1,0 +1,343 @@
+/* ── Bulk Downloader Workspace ── */
+.bd-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-base);
+}
+
+.bd-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 32px 40px 40px;
+}
+
+/* ── Drop Zone ── */
+.bd-drop-outer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 320px;
+}
+
+.bd-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 520px;
+  min-height: 260px;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-xl);
+  background: var(--surface-1);
+  padding: 40px 32px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur-base) var(--ease-out),
+              background var(--dur-base) var(--ease-out);
+}
+.bd-drop-zone:hover,
+.bd-drop-zone.dragging {
+  border-color: var(--accent-border);
+  background: var(--accent-muted);
+}
+.bd-drop-zone:hover .bd-drop-icon,
+.bd-drop-zone.dragging .bd-drop-icon {
+  color: var(--accent);
+}
+
+.bd-drop-icon {
+  color: var(--fg-4);
+  transition: color var(--dur-base);
+}
+
+.bd-drop-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--fg-1);
+  margin: 0;
+}
+
+.bd-drop-sub {
+  font-size: 13px;
+  color: var(--fg-3);
+  margin: 0;
+}
+
+.bd-drop-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  margin-top: 4px;
+}
+
+/* ── Review ── */
+.bd-review {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.bd-review-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-1);
+}
+
+.bd-review-count {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.bd-review-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Table labels ── */
+.bd-table-labels {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-4);
+}
+
+/* ── Table rows ── */
+.bd-table-rows {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.bd-table-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--dur-fast);
+}
+.bd-table-row:last-child { border-bottom: none; }
+.bd-table-row:hover { background: var(--surface-3); }
+
+/* Shared column widths */
+.bd-col-before {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bd-col-arrow {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+.bd-col-after {
+  flex: 1;
+  min-width: 0;
+}
+
+.bd-filename-before {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--fg-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bd-filesize {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-4);
+}
+
+/* ── Rename field ── */
+.bd-rename-field {
+  display: flex;
+  align-items: center;
+  background: var(--surface-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.bd-rename-field:focus-within {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.bd-rename-field input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 7px 0;
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+.bd-rename-ext {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-4);
+  flex-shrink: 0;
+}
+
+.bd-remove-btn {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg-4);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.bd-remove-btn:hover { background: var(--danger-muted); color: var(--danger-text); }
+
+/* ── Review footer ── */
+.bd-review-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-1);
+}
+
+.bd-footer-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-4);
+}
+
+/* ── HTML Preview thumbnail ── */
+.bd-preview-wrap {
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: white;
+  position: relative;
+}
+.bd-preview-iframe {
+  border: none;
+  pointer-events: none;
+  display: block;
+}
+
+/* ── Progress view ── */
+.bd-progress-view,
+.bd-done-view {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bd-progress-header,
+.bd-done-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+/* Progress bar */
+.bd-progress-bar-wrap {
+  height: 6px;
+  background: var(--surface-4);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.bd-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 300ms var(--ease-out);
+}
+
+/* Per-file status rows */
+.bd-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+}
+
+.bd-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.bd-status-ok   { color: var(--success); flex-shrink: 0; }
+.bd-status-fail { color: var(--danger);  flex-shrink: 0; }
+.bd-status-spin { color: var(--accent);  flex-shrink: 0; }
+
+.bd-status-dot {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bd-status-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-4);
+}
+
+.bd-status-name      { font-family: var(--font-mono); font-size: 12.5px; color: var(--fg-1); }
+.bd-status-name-fail { font-family: var(--font-mono); font-size: 12.5px; color: var(--danger-text); }
+.bd-status-error     { font-size: 11px; color: var(--fg-4); margin-left: auto; font-family: var(--font-mono); }
+
+/* ── Done view ── */
+.bd-done-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

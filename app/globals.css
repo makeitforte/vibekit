@@ -3,6 +3,7 @@
 @import "./shell.css";
 @import "./hub.css";
 @import "./beautifier.css";
+@import "./bulk-downloader.css";
 
 /* ── Design Tokens — Light Mode ── */
 :root {

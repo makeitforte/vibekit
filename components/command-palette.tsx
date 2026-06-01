@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, LayoutGrid } from "lucide-react";
 import {
-  Code2, Braces, Regex, Palette, GitCompare, Binary,
+  Code2, Braces, Regex, Palette, GitCompare, Binary, Files,
   GitCommitHorizontal, Sparkles, Wand2,
 } from "lucide-react";
 import { ALL_TOOLS, Tool } from "@/data/tools";
 import { cn } from "@/lib/cn";
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  Code2, Braces, Regex, Palette, GitCompare, Binary,
+  Code2, Braces, Regex, Palette, GitCompare, Binary, Files,
   GitCommitHorizontal, Sparkles, Wand2,
 };
 
