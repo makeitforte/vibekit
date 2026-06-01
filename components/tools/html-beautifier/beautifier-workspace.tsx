@@ -7,6 +7,36 @@ import { beautifyHTML } from "@/lib/beautify";
 import { highlightHTML } from "@/lib/highlight";
 import { ResizableSplit } from "./resizable-split";
 
+// Fetch cross-origin images through our server proxy and replace src with
+// base64 data URLs so html2canvas can read them without CORS errors.
+async function inlineExternalImages(doc: Document): Promise<void> {
+  const imgs = Array.from(doc.querySelectorAll<HTMLImageElement>("img[src]"));
+  await Promise.allSettled(
+    imgs.map(async (img) => {
+      const src = img.getAttribute("src") ?? "";
+      if (!src.startsWith("http://") && !src.startsWith("https://")) return;
+      try {
+        const res = await fetch(`/api/img-proxy?url=${encodeURIComponent(src)}`);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        img.src = await blobToDataUrl(blob);
+        await img.decode().catch(() => {});
+      } catch {
+        // Leave as-is; html2canvas will skip unreadable images
+      }
+    })
+  );
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 const SAMPLE =
   '<section class="hero" data-active="true"><h1>Ship faster</h1><p>Your dev environment, with a mind of its own.</p><button onclick="run()">Brief an agent</button><!-- cta --><ul><li>One</li><li>Two</li></ul></section>';
 
@@ -112,12 +142,15 @@ export function BeautifierWorkspace() {
     document.body.appendChild(iframe);
 
     try {
-      // Wait for iframe load + a short settle for fonts/images
+      // Wait for iframe load + settle for fonts/images
       await new Promise<void>((resolve) => { iframe.onload = () => resolve(); });
-      await new Promise((r) => setTimeout(r, 800));
+      await new Promise((r) => setTimeout(r, 600));
 
       const iframeDoc = iframe.contentDocument;
       if (!iframeDoc) throw new Error("Cannot access iframe document");
+
+      // Inline all external images via server proxy to bypass CORS
+      await inlineExternalImages(iframeDoc);
 
       // Dynamic imports — keep initial bundle lean
       const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
