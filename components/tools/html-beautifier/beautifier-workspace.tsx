@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Sparkles, Copy, Download, FileCode, Eraser, Wand2, FileText } from "lucide-react";
+import { Sparkles, Copy, Download, FileCode, Eraser, Wand2, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { beautifyHTML } from "@/lib/beautify";
 import { highlightHTML } from "@/lib/highlight";
@@ -20,6 +20,7 @@ export function BeautifierWorkspace() {
   const [exportDialog, setExportDialog] = useState(false);
   const [filename, setFilename] = useState("formatted");
   const [exportFormat, setExportFormat] = useState<ExportFormat>("html");
+  const [pdfLoading, setPdfLoading] = useState(false);
   const gutterRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -73,12 +74,15 @@ export function BeautifierWorkspace() {
     toast.success("Exported", { description: `${a.download} downloaded.` });
   }, [output, input, indent, filename]);
 
-  const doExportPDF = useCallback(() => {
+  const doExportPDF = useCallback(async () => {
     const content = output || beautifyHTML(input, indent);
     const name = filename || "formatted";
 
-    // Wrap the snippet in a full, valid HTML document so the browser
-    // renders it as a real page (not source code).
+    setPdfLoading(true);
+    setExportDialog(false);
+    toast.info("Generating PDF…", { description: "Rendering your HTML, please wait." });
+
+    // Wrap snippet in a full document with background-preserve CSS
     const fullDoc = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -88,36 +92,91 @@ export function BeautifierWorkspace() {
 <style>
   *, *::before, *::after {
     box-sizing: border-box;
-    /* Force browser to preserve all background colors and images when printing */
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
   body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
-  @page { margin: 0; size: A4; }
 </style>
 </head>
-<body>
-${content}
-</body>
+<body>${content}</body>
 </html>`;
 
+    // Render in a same-origin (blob:) hidden iframe
     const blob = new Blob([fullDoc], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const win = window.open(url, "_blank");
+    const blobUrl = URL.createObjectURL(blob);
+    const iframe = document.createElement("iframe");
+    iframe.src = blobUrl;
+    // Off-screen but sized to A4 width at 96 dpi
+    iframe.style.cssText =
+      "position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;visibility:hidden;";
+    document.body.appendChild(iframe);
 
-    if (!win) {
-      URL.revokeObjectURL(url);
-      toast.error("Popup blocked", { description: "Allow popups for this site and try again." });
-      return;
+    try {
+      // Wait for iframe load + a short settle for fonts/images
+      await new Promise<void>((resolve) => { iframe.onload = () => resolve(); });
+      await new Promise((r) => setTimeout(r, 800));
+
+      const iframeDoc = iframe.contentDocument;
+      if (!iframeDoc) throw new Error("Cannot access iframe document");
+
+      // Dynamic imports — keep initial bundle lean
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      // Capture full page height
+      const body = iframeDoc.body;
+      const scrollH = body.scrollHeight;
+      iframe.style.height = `${scrollH}px`;
+
+      const canvas = await html2canvas(body, {
+        allowTaint: true,
+        useCORS: true,
+        scale: 2,
+        backgroundColor: null,
+        width: 794,
+        height: scrollH,
+        windowWidth: 794,
+        windowHeight: scrollH,
+      });
+
+      // Build PDF — slice canvas into A4 pages
+      const pdf = new jsPDF({ orientation: "p", unit: "px", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW;
+      const imgH = (canvas.height * pageW) / canvas.width;
+
+      let yOffset = 0;
+      let remaining = imgH;
+      let first = true;
+
+      while (remaining > 0) {
+        if (!first) pdf.addPage();
+        first = false;
+        pdf.addImage(
+          canvas.toDataURL("image/png", 1.0),
+          "PNG",
+          0,
+          -yOffset,
+          imgW,
+          imgH,
+        );
+        yOffset += pageH;
+        remaining -= pageH;
+      }
+
+      pdf.save(`${name}.pdf`);
+      toast.success("PDF downloaded", { description: `${name}.pdf saved.` });
+    } catch (err) {
+      console.error(err);
+      toast.error("PDF generation failed", { description: "Try again or use the print method." });
+    } finally {
+      document.body.removeChild(iframe);
+      URL.revokeObjectURL(blobUrl);
+      setPdfLoading(false);
     }
-
-    win.addEventListener("load", () => {
-      win.print();
-      URL.revokeObjectURL(url);
-    });
-
-    setExportDialog(false);
-    toast.success("Preview opened", { description: "Choose 'Save as PDF' in the print dialog." });
   }, [output, input, indent, filename]);
 
   const doExport = useCallback(() => {
@@ -296,15 +355,17 @@ ${content}
 
               {exportFormat === "pdf" && (
                 <p className="dlg-pdf-note">
-                  Opens a live render of your HTML in a new tab, then triggers the print dialog. Choose <strong>Save as PDF</strong> to capture the full visual output.
+                  Renders your HTML in the background and downloads a <strong>.pdf</strong> file directly — no new tab or print dialog needed.
                 </p>
               )}
             </div>
             <div className="dlg-foot">
               <button className="btn btn-ghost" onClick={() => setExportDialog(false)} type="button">Cancel</button>
-              <button className="btn btn-primary" onClick={doExport} type="button">
-                <Download size={15} />
-                {exportFormat === "pdf" ? "Open print preview" : "Download"}
+              <button className="btn btn-primary" onClick={doExport} type="button" disabled={pdfLoading}>
+                {pdfLoading
+                  ? <><Loader2 size={15} className="animate-spin" /> Generating…</>
+                  : <><Download size={15} />{exportFormat === "pdf" ? "Download PDF" : "Download"}</>
+                }
               </button>
             </div>
           </div>
