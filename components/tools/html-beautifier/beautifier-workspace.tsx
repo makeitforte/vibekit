@@ -86,9 +86,14 @@ export function BeautifierWorkspace() {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${name}</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
+  *, *::before, *::after {
+    box-sizing: border-box;
+    /* Force browser to preserve all background colors and images when printing */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
-  @page { margin: 1.5cm; size: A4; }
+  @page { margin: 0; size: A4; }
 </style>
 </head>
 <body>
