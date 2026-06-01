@@ -75,91 +75,44 @@ export function BeautifierWorkspace() {
 
   const doExportPDF = useCallback(() => {
     const content = output || beautifyHTML(input, indent);
-    const highlighted = highlightHTML(content);
     const name = filename || "formatted";
 
-    const printDoc = `<!DOCTYPE html>
+    // Wrap the snippet in a full, valid HTML document so the browser
+    // renders it as a real page (not source code).
+    const fullDoc = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${name}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 11.5px;
-    line-height: 1.7;
-    color: #17171a;
-    background: #fff;
-    padding: 48px 56px;
-  }
-  header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 28px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #e2e2e7;
-  }
-  .logo {
-    width: 26px; height: 26px; border-radius: 6px;
-    background: linear-gradient(135deg, #16a268, #22c97f);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .logo svg { display: block; }
-  .meta { font-size: 11px; color: #73737c; }
-  .meta strong { color: #17171a; font-weight: 600; }
-  pre {
-    white-space: pre;
-    overflow: visible;
-    word-break: break-all;
-  }
-  .tk-tag  { color: #0e7a4e; }
-  .tk-name { color: #17171a; }
-  .tk-attr { color: #117a4f; }
-  .tk-val  { color: #876200; }
-  .tk-cmt  { color: #a6a6ae; font-style: italic; }
-  .tk-txt  { color: #51515a; }
-  @page { margin: 2cm; size: A4; }
-  @media print {
-    body { padding: 0; }
-    header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+  @page { margin: 1.5cm; size: A4; }
 </style>
 </head>
 <body>
-<header>
-  <div class="logo">
-    <svg viewBox="0 0 20 20" width="14" height="14" fill="none">
-      <path d="M3 7l4-4 3 3 3-3 4 4M3 13l4 4 3-3 3 3 4-4"
-        stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </div>
-  <div class="meta">
-    <strong>${name}.html</strong> &nbsp;·&nbsp; ${content.split("\n").length} lines &nbsp;·&nbsp; Exported from VibeKit HTML Beautifier
-  </div>
-</header>
-<pre><code>${highlighted}</code></pre>
+${content}
 </body>
 </html>`;
 
-    const printWindow = window.open("", "_blank", "width=900,height=700");
-    if (!printWindow) {
+    const blob = new Blob([fullDoc], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+
+    if (!win) {
+      URL.revokeObjectURL(url);
       toast.error("Popup blocked", { description: "Allow popups for this site and try again." });
       return;
     }
-    printWindow.document.write(printDoc);
-    printWindow.document.close();
-    printWindow.focus();
-    // Give fonts time to load before triggering print
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 600);
+
+    win.addEventListener("load", () => {
+      win.print();
+      URL.revokeObjectURL(url);
+    });
 
     setExportDialog(false);
-    toast.success("Print dialog opened", { description: "Choose 'Save as PDF' in your printer dialog." });
+    toast.success("Preview opened", { description: "Choose 'Save as PDF' in the print dialog." });
   }, [output, input, indent, filename]);
 
   const doExport = useCallback(() => {
@@ -338,7 +291,7 @@ export function BeautifierWorkspace() {
 
               {exportFormat === "pdf" && (
                 <p className="dlg-pdf-note">
-                  Opens a print preview with syntax-highlighted code. Choose <strong>Save as PDF</strong> in your browser&apos;s print dialog.
+                  Opens a live render of your HTML in a new tab, then triggers the print dialog. Choose <strong>Save as PDF</strong> to capture the full visual output.
                 </p>
               )}
             </div>
