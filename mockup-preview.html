@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VibeKit — Mockup Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #e5e5e5; font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif; }
+
+/* ── Design Tokens (Light Mode) ── */
+:root {
+  --bg-base:      #f7f7f8;
+  --bg-sunken:    #ededf0;
+  --surface-1:    #ffffff;
+  --surface-2:    #ffffff;
+  --surface-3:    #f1f1f4;
+  --surface-4:    #e6e6eb;
+
+  --border-subtle: rgba(17,17,20,0.09);
+  --border-strong: rgba(17,17,20,0.15);
+  --border-solid:  #e2e2e7;
+
+  --fg-1: #17171a;
+  --fg-2: #51515a;
+  --fg-3: #73737c;
+  --fg-4: #a6a6ae;
+
+  --accent:        #16a268;
+  --accent-hover:  #128f5b;
+  --accent-fg:     #ffffff;
+  --accent-muted:  rgba(22,162,104,0.10);
+  --accent-border: rgba(22,162,104,0.35);
+  --accent-ring:   rgba(22,162,104,0.34);
+  --accent-glow:   rgba(22,162,104,0.20);
+  --accent-text:   #0e7a4e;
+
+  --warning-text:  #876200;
+
+  --shadow-sm:  0 1px 2px rgba(17,17,20,0.06);
+  --shadow-md:  0 4px 16px -4px rgba(17,17,20,0.12);
+  --shadow-lg:  0 20px 50px -16px rgba(17,17,20,0.20);
+  --glow-accent: 0 0 0 1px var(--accent-border), 0 8px 24px -8px var(--accent-glow);
+  --success:       #16a268;
+  --success-muted: rgba(22,162,104,0.12);
+  --success-text:  #0e7a4e;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  --font-display: 'Space Grotesk', ui-sans-serif, sans-serif;
+  --font-sans:    'Hanken Grotesk', ui-sans-serif, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ── View switcher (meta UI — not part of the app) ── */
+.meta-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+  background: #1a1a1f; color: #a0a0a8;
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; font-family: var(--font-mono); font-size: 11px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.meta-bar span { margin-right: 6px; color: #57575f; }
+.meta-btn {
+  padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+  background: transparent; color: #a0a0a8; font-family: var(--font-mono); font-size: 11px;
+  cursor: pointer; transition: all 120ms;
+}
+.meta-btn:hover { background: rgba(255,255,255,0.06); color: #e0e0e8; }
+.meta-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.meta-label { margin-left: auto; color: #57575f; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; }
+
+/* ── App shell ── */
+.app-wrap { padding-top: 37px; height: 100vh; }
+.app {
+  display: grid; grid-template-columns: 264px 1fr; height: calc(100vh - 37px);
+  background: var(--bg-base);
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--surface-1);
+  border-right: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column;
+  height: 100%; overflow: hidden;
+}
+
+.sidebar-top {
+  padding: 18px 16px 0;
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.logo-mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(135deg, #16a268 0%, #22c97f 100%);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; box-shadow: var(--shadow-sm);
+}
+.logo-mark svg { width: 16px; height: 16px; fill: white; }
+.brand-name {
+  font-family: var(--font-display); font-size: 17px; font-weight: 600;
+  letter-spacing: -0.02em; color: var(--fg-1);
+}
+.brand-badge {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--accent-text);
+  background: var(--accent-muted); padding: 3px 7px;
+  border-radius: var(--radius-full);
+}
+
+.search-trigger {
+  margin: 14px 12px 10px;
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 11px; background: var(--surface-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  color: var(--fg-3); font-size: 13px; cursor: pointer;
+  transition: border-color 120ms;
+}
+.search-trigger:hover { border-color: var(--border-strong); }
+.search-icon { width: 15px; height: 15px; color: var(--fg-4); flex-shrink: 0; }
+.search-trigger span { flex: 1; color: var(--fg-4); }
+.kbd {
+  font-family: var(--font-mono); font-size: 10px; color: var(--fg-4);
+  background: var(--surface-1); border: 1px solid var(--border-subtle);
+  border-radius: 5px; padding: 1px 6px; margin-left: auto;
+}
+
+.sidebar-scroll { flex: 1; overflow-y: auto; padding-bottom: 8px; min-height: 0; }
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 4px; }
+
+.nav-section-label {
+  padding: 12px 18px 6px;
+  font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--fg-4);
+  display: flex; align-items: center; gap: 6px;
+}
+.nav-section-label .count { margin-left: auto; }
+
+.nav { padding: 0 8px; display: flex; flex-direction: column; gap: 1px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  color: var(--fg-2); font-size: 13.5px; font-weight: 500;
+  cursor: pointer; position: relative; width: 100%;
+  background: none; border: none; font-family: var(--font-sans);
+  transition: background 120ms, color 120ms; text-align: left;
+}
+.nav-item:hover { background: var(--surface-3); color: var(--fg-1); }
+.nav-item.active {
+  background: var(--accent-muted); color: var(--accent-text);
+}
+.nav-item.active::before {
+  content: ''; position: absolute; left: -8px; top: 7px; bottom: 7px;
+  width: 2px; border-radius: 2px; background: var(--accent);
+}
+.nav-item.soon { color: var(--fg-4); cursor: default; }
+.nav-item.soon:hover { background: transparent; }
+.nav-tag {
+  margin-left: auto; font-family: var(--font-mono); font-size: 9px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--fg-4); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full); padding: 2px 6px;
+}
+.nav-tag.ai { color: var(--accent-text); border-color: var(--accent-border); }
+
+.sidebar-footer {
+  padding: 12px; border-top: 1px solid var(--border-subtle);
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #16a268, #22c97f);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;
+}
+.footer-name { font-size: 13px; font-weight: 600; color: var(--fg-1); }
+.footer-plan { font-family: var(--font-mono); font-size: 10px; color: var(--fg-4); }
+.settings-btn {
+  margin-left: auto; width: 30px; height: 30px; border-radius: var(--radius-sm);
+  border: none; background: transparent; color: var(--fg-3);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.settings-btn:hover { background: var(--surface-3); color: var(--fg-1); }
+
+/* ── Main area ── */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.topbar {
+  height: 56px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; padding: 0 40px; gap: 12px;
+  background: var(--surface-1);
+}
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.bc-link { color: var(--fg-3); cursor: pointer; background: none; border: none; font-family: var(--font-sans); font-size: 14px; padding: 0; }
+.bc-link:hover { color: var(--fg-1); }
+.bc-sep { color: var(--fg-4); display: flex; align-items: center; }
+.bc-cur { color: var(--fg-1); font-weight: 600; }
+.topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
+  border: none; background: transparent; color: var(--fg-3);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.icon-btn:hover { background: var(--surface-3); color: var(--fg-1); }
+
+.content { flex: 1; min-height: 0; overflow: auto; background: var(--bg-base); }
+.content::-webkit-scrollbar { width: 8px; }
+.content::-webkit-scrollbar-thumb { background: var(--surface-4); border-radius: 4px; border: 2px solid var(--bg-base); }
+
+/* ── Hub view ── */
+.hub { padding: 40px; max-width: 1100px; }
+
+.hub-eyebrow {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text);
+  margin-bottom: 10px;
+}
+.hub-title {
+  font-family: var(--font-display); font-size: 36px; font-weight: 600;
+  letter-spacing: -0.02em; line-height: 1.1; color: var(--fg-1); margin-bottom: 10px;
+}
+.hub-sub { font-size: 15px; color: var(--fg-3); line-height: 1.55; max-width: 52ch; margin-bottom: 22px; }
+
+.hub-stats { display: flex; gap: 28px; padding-bottom: 6px; }
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat b { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--fg-1); letter-spacing: -0.01em; }
+.stat span { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-4); }
+
+.section-header {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 36px 0 16px;
+}
+.section-header h2 {
+  font-family: var(--font-display); font-size: 17px; font-weight: 600;
+  letter-spacing: -0.01em; color: var(--fg-1);
+}
+.section-meta { font-family: var(--font-mono); font-size: 11px; color: var(--fg-4); }
+.section-line { flex: 1; height: 1px; background: var(--border-subtle); }
+
+.tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+
+/* ── Tool Card ── */
+.tool-card {
+  position: relative; padding: 20px; border-radius: var(--radius-lg);
+  background: var(--surface-1); border: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; gap: 10px; min-height: 164px;
+  cursor: pointer; text-align: left; font-family: var(--font-sans);
+  transition: border-color 180ms, box-shadow 180ms, transform 180ms;
+  box-shadow: var(--shadow-sm);
+}
+.tool-card.active:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--glow-accent);
+  transform: translateY(-2px);
+}
+.tool-card.locked { cursor: default; opacity: 0.62; }
+.tool-card.locked:hover { border-color: var(--border-strong); opacity: 0.72; transform: none; }
+
+.card-badge {
+  position: absolute; top: 14px; right: 14px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: var(--radius-full);
+  color: var(--fg-3); background: var(--surface-3);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.card-badge.ai { color: var(--accent-text); background: var(--accent-muted); }
+
+.card-icon {
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  background: var(--accent-muted); color: var(--accent);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tool-card.locked .card-icon { background: var(--surface-3); color: var(--fg-3); }
+
+.card-name { font-size: 15px; font-weight: 600; color: var(--fg-1); letter-spacing: -0.01em; }
+.card-blurb { font-size: 13px; line-height: 1.5; color: var(--fg-3); flex: 1; }
+.card-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; }
+.card-tag {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--fg-4);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-full); padding: 3px 9px;
+}
+.card-run {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: var(--accent-text);
+  opacity: 0; transform: translateX(-4px);
+  transition: opacity 180ms, transform 180ms;
+}
+.tool-card.active:hover .card-run { opacity: 1; transform: none; }
+
+/* ── Beautifier view ── */
+.bf { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+.bf-header {
+  padding: 18px 40px 14px; display: flex; align-items: center; gap: 16px;
+  background: var(--surface-1); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+}
+.bf-icon {
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  background: var(--accent-muted); color: var(--accent);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.bf-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; color: var(--fg-1); }
+.bf-subtitle { font-size: 13px; color: var(--fg-3); margin-top: 2px; }
+.bf-options { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.seg-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-4); }
+.seg-control {
+  display: inline-flex; background: var(--surface-3); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); padding: 3px; gap: 2px;
+}
+.seg-btn {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  color: var(--fg-3); background: none; border: none;
+  padding: 5px 11px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.seg-btn.active { background: var(--surface-1); color: var(--fg-1); box-shadow: var(--shadow-sm); }
+
+.bf-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.split-pane {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr;
+  margin: 0 40px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+  overflow: hidden; background: var(--surface-1); position: relative;
+  box-shadow: var(--shadow-sm);
+}
+
+.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.pane + .pane { border-left: 1px solid var(--border-strong); }
+
+.pane-header {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle); background: var(--surface-1); flex-shrink: 0;
+}
+.pane-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-4); }
+.pane-dot.green { background: var(--success); }
+.pane-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-2); font-weight: 500; }
+.pane-meta { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--fg-4); }
+.pane-btn {
+  background: none; border: none; color: var(--fg-3); cursor: pointer; padding: 4px;
+  border-radius: var(--radius-sm); display: inline-flex; transition: background 120ms;
+}
+.pane-btn:hover { background: var(--surface-3); color: var(--fg-1); }
+
+.pane-editor {
+  flex: 1; min-height: 0; display: flex; overflow: hidden;
+  background: var(--bg-sunken);
+}
+.line-gutter {
+  flex-shrink: 0; padding: 14px 10px 14px 14px; text-align: right;
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65; color: var(--fg-4);
+  background: var(--surface-1); border-right: 1px solid var(--border-subtle);
+  user-select: none; min-width: 36px;
+}
+.line-gutter div { height: 20.6px; }
+.code-input {
+  flex: 1; resize: none; border: none; outline: none; padding: 14px 16px;
+  background: transparent; color: var(--fg-1);
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65;
+  tab-size: 2; white-space: pre; overflow: auto;
+}
+.code-input::placeholder { color: var(--fg-4); }
+
+.output-pane { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px; background: var(--bg-sunken); }
+.output-pane pre { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65; white-space: pre; }
+
+/* syntax highlight */
+.tk-tag  { color: var(--accent-text); }
+.tk-name { color: var(--fg-1); }
+.tk-attr { color: var(--success-text); }
+.tk-val  { color: #876200; }
+.tk-cmt  { color: var(--fg-4); font-style: italic; }
+.tk-txt  { color: var(--fg-2); }
+
+.empty-state {
+  height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  color: var(--fg-4); text-align: center;
+}
+.empty-icon {
+  width: 44px; height: 44px; border-radius: var(--radius-md);
+  border: 1.5px dashed var(--border-strong);
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-state p { font-size: 13px; max-width: 24ch; line-height: 1.5; }
+
+/* split grip */
+.split-grip {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 18px; height: 52px; border-radius: var(--radius-full);
+  background: var(--surface-1); border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  z-index: 3; pointer-events: none;
+}
+.split-grip span {
+  width: 2px; height: 18px; border-radius: 2px; background: var(--fg-4);
+}
+
+.bf-actions {
+  flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: 14px 40px 18px; background: var(--bg-base);
+}
+.shortcut-hint {
+  margin-left: auto; display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--fg-4);
+}
+.key {
+  background: var(--surface-1); border: 1px solid var(--border-subtle);
+  border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px;
+  color: var(--fg-3); font-size: 11px;
+}
+
+/* ── Buttons ── */
+.btn {
+  font-family: var(--font-sans); font-size: 13.5px; font-weight: 600;
+  letter-spacing: -0.01em; white-space: nowrap; padding: 9px 16px;
+  border-radius: var(--radius-md); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid transparent;
+  transition: background 120ms, border-color 120ms, box-shadow 120ms;
+}
+.btn-primary {
+  background: var(--accent); color: var(--accent-fg);
+  box-shadow: 0 1px 3px rgba(22,162,104,0.4);
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-ghost {
+  background: var(--surface-1); color: var(--fg-1);
+  border-color: var(--border-strong);
+}
+.btn-ghost:hover { background: var(--surface-3); }
+
+/* ── Inline SVG icons ── */
+svg { display: block; }
+
+/* ── Toast (demo) ── */
+.toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 50; }
+.toast {
+  display: flex; align-items: center; gap: 11px;
+  background: var(--surface-1); border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg); border-radius: var(--radius-md);
+  padding: 12px 16px; min-width: 240px;
+}
+.toast-icon { color: var(--success); display: flex; }
+.toast-msg { font-size: 13px; font-weight: 500; color: var(--fg-1); }
+.toast-sub { font-size: 12px; color: var(--fg-3); }
+
+/* ── View toggle ── */
+#view-hub { display: block; }
+#view-bf  { display: none; }
+body.show-bf #view-hub { display: none; }
+body.show-bf #view-bf  { display: block; }
+body.show-bf .nav-item.hub-link { color: var(--fg-2); background: none; }
+body.show-bf .nav-item.hub-link::before { display: none; }
+body.show-bf .nav-item.bf-link { background: var(--accent-muted); color: var(--accent-text); }
+body.show-bf .nav-item.bf-link::before { display: block; }
+body.show-bf .breadcrumb .bc-cur { display: none; }
+body.show-bf .breadcrumb .bf-crumb { display: flex; }
+.bf-crumb { display: none; align-items: center; gap: 8px; }
+
+/* Command palette overlay */
+.palette-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(4px); z-index: 80;
+  display: none; align-items: flex-start; justify-content: center; padding-top: 13vh;
+}
+.palette-overlay.open { display: flex; }
+.palette-box {
+  width: 540px; max-width: 90vw; background: var(--surface-1);
+  border: 1px solid var(--border-strong); border-radius: 14px;
+  box-shadow: var(--shadow-lg); overflow: hidden;
+}
+.palette-input-row {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.palette-input {
+  flex: 1; border: none; outline: none; background: transparent;
+  color: var(--fg-1); font-family: var(--font-sans); font-size: 16px;
+}
+.palette-input::placeholder { color: var(--fg-4); }
+.palette-list { padding: 8px; }
+.palette-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 11px;
+  border-radius: 9px; cursor: pointer; color: var(--fg-2); font-size: 14px; font-weight: 500;
+}
+.palette-item:hover { background: var(--accent-muted); color: var(--accent-text); }
+.palette-item .kind {
+  margin-left: auto; font-family: var(--font-mono); font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-4);
+}
+.palette-item.selected { background: var(--accent-muted); color: var(--accent-text); }
+</style>
+</head>
+<body>
+
+<!-- Meta switcher bar (not part of final app) -->
+<div class="meta-bar">
+  <span>MOCKUP</span>
+  <button class="meta-btn active" id="btn-hub" onclick="switchView('hub')">/ Hub</button>
+  <button class="meta-btn" id="btn-bf" onclick="switchView('bf')">/tools/html-beautifier</button>
+  <button class="meta-btn" id="btn-palette" onclick="togglePalette()" style="margin-left: 12px;">Ctrl+K Palette</button>
+  <span class="meta-label">VibeKit Light Mode</span>
+</div>
+
+<!-- Command palette -->
+<div class="palette-overlay" id="palette" onclick="closePalette()">
+  <div class="palette-box" onclick="event.stopPropagation()">
+    <div class="palette-input-row">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fg-3)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="palette-input" placeholder="Search tools or jump to…" />
+      <span class="kbd">esc</span>
+    </div>
+    <div class="palette-list">
+      <div class="palette-item selected">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Go to hub <span class="kind">Nav</span>
+      </div>
+      <div class="palette-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        HTML beautifier <span class="kind">Tool</span>
+      </div>
+      <div class="palette-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+        JSON formatter <span class="kind">Soon</span>
+      </div>
+      <div class="palette-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+        Regex tester <span class="kind">Soon</span>
+      </div>
+      <div class="palette-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+        Color tools <span class="kind">Soon</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app-wrap">
+  <div class="app">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="logo-mark">
+          <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 7l4-4 3 3 3-3 4 4M3 13l4 4 3-3 3 3 4-4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="brand-name">VibeKit</span>
+        <span class="brand-badge">beta</span>
+      </div>
+
+      <div class="search-trigger" onclick="togglePalette()">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <span>Search tools…</span>
+        <span class="kbd">Ctrl K</span>
+      </div>
+
+      <div class="sidebar-scroll">
+        <div class="nav-section-label">
+          Tools <span class="count">1 active</span>
+        </div>
+        <nav class="nav">
+          <button class="nav-item hub-link active" onclick="switchView('hub')" style="display:none"></button>
+
+          <!-- HTML Beautifier — active -->
+          <button class="nav-item bf-link" onclick="switchView('bf')">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            HTML beautifier
+          </button>
+
+          <button class="nav-item soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            JSON formatter
+            <span class="nav-tag">soon</span>
+          </button>
+          <button class="nav-item soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+            Regex tester
+            <span class="nav-tag">soon</span>
+          </button>
+          <button class="nav-item soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
+            Color tools
+            <span class="nav-tag">soon</span>
+          </button>
+          <button class="nav-item soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            Diff viewer
+            <span class="nav-tag">soon</span>
+          </button>
+          <button class="nav-item soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M4 8h4M4 12h4M4 16h4"/></svg>
+            Base64 studio
+            <span class="nav-tag">soon</span>
+          </button>
+        </nav>
+
+        <div class="nav-section-label">Personal assistance</div>
+        <nav class="nav">
+          <button class="nav-item soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/></svg>
+            Commit writer
+            <span class="nav-tag ai">AI</span>
+          </button>
+          <button class="nav-item soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4M21 5h-4"/></svg>
+            Snippet explainer
+            <span class="nav-tag ai">AI</span>
+          </button>
+          <button class="nav-item soon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            Naming helper
+            <span class="nav-tag ai">AI</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="avatar">JK</div>
+        <div>
+          <div class="footer-name">Jordan Kessler</div>
+          <div class="footer-plan">Free plan</div>
+        </div>
+        <button class="settings-btn" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="main">
+
+      <!-- Topbar -->
+      <div class="topbar">
+        <div class="breadcrumb">
+          <button class="bc-link" onclick="switchView('hub')">VibeKit</button>
+          <span class="bc-sep">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </span>
+          <span class="bc-cur">Hub</span>
+          <span class="bf-crumb">
+            <button class="bc-link" onclick="switchView('hub')">Tools</button>
+            <span class="bc-sep">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+            <span class="bc-cur">HTML beautifier</span>
+          </span>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" onclick="togglePalette()" title="Search (Ctrl+K)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </button>
+          <button class="icon-btn" title="Documentation">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          </button>
+          <button class="icon-btn" title="Notifications">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hub view -->
+      <div class="content" id="view-hub">
+        <div class="hub">
+          <p class="hub-eyebrow">Your toolkit</p>
+          <h1 class="hub-title">Good morning, Jordan.</h1>
+          <p class="hub-sub">Everything you reach for while you build, in one keyboard-driven place. Pick a tool to get going.</p>
+          <div class="hub-stats">
+            <div class="stat"><b>1</b><span>Active</span></div>
+            <div class="stat"><b>5</b><span>Upcoming</span></div>
+            <div class="stat"><b>3</b><span>AI features</span></div>
+          </div>
+
+          <div class="section-header">
+            <h2>Tools</h2>
+            <span class="section-meta">6</span>
+            <span class="section-line"></span>
+          </div>
+
+          <div class="tool-grid">
+            <!-- Active card -->
+            <button class="tool-card active" onclick="switchView('bf')" style="border: none; text-align: left;">
+              <div class="card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </div>
+              <div class="card-name">HTML beautifier</div>
+              <div class="card-blurb">Format messy markup into clean, indented HTML with syntax highlighting.</div>
+              <div class="card-foot">
+                <span class="card-tag">Formatter</span>
+                <span class="card-run">
+                  Run tool
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </span>
+              </div>
+            </button>
+
+            <!-- Locked cards -->
+            <div class="tool-card locked">
+              <span class="card-badge">Upcoming</span>
+              <div class="card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </div>
+              <div class="card-name">JSON formatter</div>
+              <div class="card-blurb">Validate, prettify and collapse JSON trees at a glance.</div>
+              <div class="card-foot"><span class="card-tag">Formatter</span></div>
+            </div>
+
+            <div class="tool-card locked">
+              <span class="card-badge">Upcoming</span>
+              <div class="card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+              </div>
+              <div class="card-name">Regex tester</div>
+              <div class="card-blurb">Match patterns live with capture-group breakdown.</div>
+              <div class="card-foot"><span class="card-tag">Text</span></div>
+            </div>
+
+            <div class="tool-card locked">
+              <span class="card-badge">Upcoming</span>
+              <div class="card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
+              </div>
+              <div class="card-name">Color tools</div>
+              <div class="card-blurb">Convert, scale and check contrast on any color.</div>
+              <div class="card-foot"><span class="card-tag">Design</span></div>
+            </div>
+
+            <div class="tool-card locked">
+              <span class="card-badge">Upcoming</span>
+              <div class="card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><line x1="8" y1="6" x2="2" y2="12"/><line x1="2" y1="18" x2="8" y2="12"/></svg>
+              </div>
+              <div class="card-name">Diff viewer</div>
+              <div class="card-blurb">Compare two snippets side by side, line by line.</div>
+              <div class="card-foot"><span class="card-tag">Text</span></div>
+            </div>
+
+            <div class="tool-card locked">
+              <span class="card-badge">Upcoming</span>
+              <div class="card-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 4v16M4 8h4M4 12h4M4 16h4"/></svg>
+              </div>
+              <div class="card-name">Base64 studio</div>
+              <div class="card-blurb">Encode and decode strings, files and data URIs.</div>
+              <div class="card-foot"><span class="card-tag">Encode</span></div>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <h2>Personal assistance</h2>
+            <span class="section-meta">AI</span>
+            <span class="section-line"></span>
+          </div>
+
+          <div class="tool-grid">
+            <div class="tool-card locked ai">
+              <span class="card-badge ai">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                AI feature
+              </span>
+              <div class="card-icon" style="background:var(--accent-muted); color:var(--accent)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/></svg>
+              </div>
+              <div class="card-name">Commit writer</div>
+              <div class="card-blurb">Draft conventional commits from a diff.</div>
+              <div class="card-foot"><span class="card-tag">AI feature</span></div>
+            </div>
+
+            <div class="tool-card locked ai">
+              <span class="card-badge ai">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                AI feature
+              </span>
+              <div class="card-icon" style="background:var(--accent-muted); color:var(--accent)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4M21 5h-4"/></svg>
+              </div>
+              <div class="card-name">Snippet explainer</div>
+              <div class="card-blurb">Plain-language walkthrough of any code you paste.</div>
+              <div class="card-foot"><span class="card-tag">AI feature</span></div>
+            </div>
+
+            <div class="tool-card locked ai">
+              <span class="card-badge ai">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+                AI feature
+              </span>
+              <div class="card-icon" style="background:var(--accent-muted); color:var(--accent)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              </div>
+              <div class="card-name">Naming helper</div>
+              <div class="card-blurb">Suggest clear names for variables and functions.</div>
+              <div class="card-foot"><span class="card-tag">AI feature</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Beautifier view -->
+      <div class="content" id="view-bf" style="overflow:hidden; display:flex; flex-direction:column;">
+        <div class="bf" style="height:100%;">
+
+          <div class="bf-header">
+            <div class="bf-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </div>
+            <div>
+              <div class="bf-title">HTML beautifier</div>
+              <div class="bf-subtitle">Paste raw markup, get clean indented HTML.</div>
+            </div>
+            <div class="bf-options">
+              <span class="seg-label">Indent</span>
+              <div class="seg-control">
+                <button class="seg-btn active">2 sp</button>
+                <button class="seg-btn">4 sp</button>
+                <button class="seg-btn">tab</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bf-body">
+            <div style="flex:1; min-height:0; display:flex; flex-direction:column; padding: 0 40px; padding-top: 0;">
+              <div style="flex:1; min-height:0; margin-top: 20px;">
+                <div class="split-pane">
+                  <!-- Input -->
+                  <div class="pane">
+                    <div class="pane-header">
+                      <span class="pane-dot"></span>
+                      <span class="pane-label">Input · HTML</span>
+                      <span class="pane-meta">215 chars</span>
+                      <button class="pane-btn" title="Load sample">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+                      </button>
+                      <button class="pane-btn" title="Clear">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 6H3"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <div class="pane-editor">
+                      <div class="line-gutter">
+                        <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div>
+                      </div>
+                      <textarea class="code-input" spellcheck="false"><section class="hero" data-active="true"><h1>Ship faster</h1><p>Your dev environment, with a mind of its own.</p><button onclick="run()">Brief an agent</button><ul><li>One</li><li>Two</li></ul></section></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Split grip -->
+                  <div class="split-grip">
+                    <span></span><span></span>
+                  </div>
+
+                  <!-- Output -->
+                  <div class="pane">
+                    <div class="pane-header">
+                      <span class="pane-dot green"></span>
+                      <span class="pane-label">Output · Formatted</span>
+                      <span class="pane-meta">11 lines</span>
+                      <button class="pane-btn" title="Copy output">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </div>
+                    <pre class="output-pane"><code><span class="tk-tag">&lt;</span><span class="tk-name">section</span> <span class="tk-attr">class</span>=<span class="tk-val">"hero"</span> <span class="tk-attr">data-active</span>=<span class="tk-val">"true"</span><span class="tk-tag">&gt;</span>
+  <span class="tk-tag">&lt;</span><span class="tk-name">h1</span><span class="tk-tag">&gt;</span><span class="tk-txt">Ship faster</span><span class="tk-tag">&lt;/</span><span class="tk-name">h1</span><span class="tk-tag">&gt;</span>
+  <span class="tk-tag">&lt;</span><span class="tk-name">p</span><span class="tk-tag">&gt;</span>
+    <span class="tk-txt">Your dev environment, with a mind of its own.</span>
+  <span class="tk-tag">&lt;/</span><span class="tk-name">p</span><span class="tk-tag">&gt;</span>
+  <span class="tk-tag">&lt;</span><span class="tk-name">button</span> <span class="tk-attr">onclick</span>=<span class="tk-val">"run()"</span><span class="tk-tag">&gt;</span><span class="tk-txt">Brief an agent</span><span class="tk-tag">&lt;/</span><span class="tk-name">button</span><span class="tk-tag">&gt;</span>
+  <span class="tk-tag">&lt;</span><span class="tk-name">ul</span><span class="tk-tag">&gt;</span>
+    <span class="tk-tag">&lt;</span><span class="tk-name">li</span><span class="tk-tag">&gt;</span><span class="tk-txt">One</span><span class="tk-tag">&lt;/</span><span class="tk-name">li</span><span class="tk-tag">&gt;</span>
+    <span class="tk-tag">&lt;</span><span class="tk-name">li</span><span class="tk-tag">&gt;</span><span class="tk-txt">Two</span><span class="tk-tag">&lt;/</span><span class="tk-name">li</span><span class="tk-tag">&gt;</span>
+  <span class="tk-tag">&lt;/</span><span class="tk-name">ul</span><span class="tk-tag">&gt;</span>
+<span class="tk-tag">&lt;/</span><span class="tk-name">section</span><span class="tk-tag">&gt;</span></code></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bf-actions">
+            <button class="btn btn-primary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+              Beautify
+            </button>
+            <button class="btn btn-ghost">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy code
+            </button>
+            <button class="btn btn-ghost">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export file
+            </button>
+            <div class="shortcut-hint">
+              <span class="key">Ctrl</span><span class="key">↵</span> to beautify
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /app -->
+</div><!-- /app-wrap -->
+
+<!-- Toast demo -->
+<div class="toast-wrap">
+  <div class="toast">
+    <div class="toast-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+    <div>
+      <div class="toast-msg">Beautified</div>
+      <div class="toast-sub">11 lines formatted.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchView(v) {
+  const hubEl  = document.getElementById('view-hub');
+  const bfEl   = document.getElementById('view-bf');
+  const btnHub = document.getElementById('btn-hub');
+  const btnBf  = document.getElementById('btn-bf');
+
+  if (v === 'hub') {
+    hubEl.style.display = 'block';
+    bfEl.style.display  = 'none';
+    document.body.classList.remove('show-bf');
+    btnHub.classList.add('active');
+    btnBf.classList.remove('active');
+    // sidebar active state
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  } else {
+    hubEl.style.display = 'none';
+    bfEl.style.display  = 'flex';
+    document.body.classList.add('show-bf');
+    btnBf.classList.add('active');
+    btnHub.classList.remove('active');
+    document.querySelectorAll('.nav-item.bf-link').forEach(el => el.classList.add('active'));
+  }
+}
+
+function togglePalette() {
+  document.getElementById('palette').classList.toggle('open');
+}
+function closePalette() {
+  document.getElementById('palette').classList.remove('open');
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    togglePalette();
+  }
+  if (e.key === 'Escape') closePalette();
+});
+</script>
+</body>
+</html>

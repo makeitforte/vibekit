@@ -1,0 +1,211 @@
+/* ── Hub layout ── */
+.hub-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--bg-base);
+}
+
+.hub {
+  padding: 40px;
+  max-width: 1100px;
+  animation: fadeUp var(--dur-slow) var(--ease-out);
+}
+
+.hub-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 10px;
+}
+
+.hub-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--fg-1);
+  margin-bottom: 10px;
+}
+
+.hub-sub {
+  font-size: 15px;
+  color: var(--fg-3);
+  line-height: 1.55;
+  max-width: 52ch;
+  margin-bottom: 22px;
+}
+
+.hub-stats {
+  display: flex;
+  gap: 28px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat b {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--fg-1);
+  letter-spacing: -0.01em;
+}
+.stat span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-4);
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 36px 0 16px;
+}
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg-1);
+}
+.section-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-4);
+}
+.section-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+/* ── Tool Grid ── */
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* ── Tool Card ── */
+.tool-card {
+  position: relative;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 164px;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-out);
+}
+.tool-card.active:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--glow-accent);
+  transform: translateY(-2px);
+}
+.tool-card.active:hover .card-run { opacity: 1; transform: none; }
+.tool-card.active:hover .card-icon { transform: scale(1.06); }
+.tool-card.locked {
+  cursor: default;
+  opacity: 0.62;
+}
+.tool-card.locked:hover {
+  border-color: var(--border-strong);
+  opacity: 0.72;
+  transform: none;
+}
+
+.card-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--fg-3);
+  background: var(--surface-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.card-badge.ai {
+  color: var(--accent-text);
+  background: var(--accent-muted);
+}
+
+.card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--accent-muted);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.tool-card.locked .card-icon {
+  background: var(--surface-3);
+  color: var(--fg-3);
+}
+
+.card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg-1);
+  letter-spacing: -0.01em;
+}
+.card-blurb {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-3);
+  flex: 1;
+}
+.card-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 3px 9px;
+}
+.card-run {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+}

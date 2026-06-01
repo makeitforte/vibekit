@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+@import "./shell.css";
+@import "./hub.css";
+@import "./beautifier.css";
+
+/* ── Design Tokens — Light Mode ── */
+:root {
+  --bg-base:      #f7f7f8;
+  --bg-sunken:    #ededf0;
+  --surface-1:    #ffffff;
+  --surface-2:    #ffffff;
+  --surface-3:    #f1f1f4;
+  --surface-4:    #e6e6eb;
+
+  --border-subtle: rgba(17, 17, 20, 0.09);
+  --border-strong: rgba(17, 17, 20, 0.15);
+  --border-solid:  #e2e2e7;
+
+  --fg-1: #17171a;
+  --fg-2: #51515a;
+  --fg-3: #73737c;
+  --fg-4: #a6a6ae;
+
+  /* Accent — green */
+  --accent:        #16a268;
+  --accent-hover:  #128f5b;
+  --accent-active: #0e7a4e;
+  --accent-fg:     #ffffff;
+  --accent-muted:  rgba(22, 162, 104, 0.10);
+  --accent-border: rgba(22, 162, 104, 0.35);
+  --accent-ring:   rgba(22, 162, 104, 0.34);
+  --accent-glow:   rgba(22, 162, 104, 0.20);
+  --accent-text:   #0e7a4e;
+
+  --success:       #16a268;
+  --success-muted: rgba(22, 162, 104, 0.12);
+  --success-text:  #0e7a4e;
+
+  --warning:       #b7860b;
+  --warning-muted: rgba(183, 134, 11, 0.14);
+  --warning-text:  #876200;
+
+  --danger:        #e2434b;
+  --danger-muted:  rgba(226, 67, 75, 0.10);
+  --danger-text:   #c22a32;
+
+  /* Typography */
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Radii */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-full: 999px;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 2px rgba(17, 17, 20, 0.06);
+  --shadow-md:  0 4px 16px -4px rgba(17, 17, 20, 0.12);
+  --shadow-lg:  0 20px 50px -16px rgba(17, 17, 20, 0.20);
+  --shadow-pop: 0 14px 34px -10px rgba(17, 17, 20, 0.18), 0 0 0 1px rgba(17, 17, 20, 0.05);
+  --glow-accent: 0 0 0 1px var(--accent-border), 0 8px 24px -8px var(--accent-glow);
+
+  /* Motion */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast:    120ms;
+  --dur-base:    180ms;
+  --dur-slow:    320ms;
+}
+
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection { background: var(--accent-muted); }
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb {
+  background: var(--surface-4);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(17,17,20,0.2); background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Focus ── */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes scrimIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
