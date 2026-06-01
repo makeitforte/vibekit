@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { CheckCircle2, XCircle, Loader2, Download, RotateCcw, Files } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Download, RotateCcw, FolderDown } from "lucide-react";
 import { toast } from "sonner";
 import { DropZone } from "./drop-zone";
 import { RenameTable } from "./rename-table";
@@ -158,7 +158,7 @@ export function BulkDownloaderWorkspace() {
       {/* Tool header */}
       <div className="bf-header">
         <div className="bf-icon">
-          <Files size={20} />
+          <FolderDown size={20} />
         </div>
         <div>
           <h1 className="bf-title">HTML bulk downloader</h1>

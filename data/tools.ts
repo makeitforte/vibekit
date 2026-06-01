@@ -15,7 +15,7 @@ export const TOOLS: Tool[] = [
   {
     id: "html-downloader",
     name: "HTML downloader",
-    icon: "Code2",
+    icon: "FileDown",
     status: "active",
     blurb: "Beautify messy markup and export it as a clean HTML or PDF file.",
     tag: "Exporter",
@@ -25,7 +25,7 @@ export const TOOLS: Tool[] = [
   {
     id: "html-bulk-downloader",
     name: "HTML bulk downloader",
-    icon: "Files",
+    icon: "FolderDown",
     status: "active",
     blurb: "Convert multiple HTML files to PDF and download them as a single ZIP archive.",
     tag: "Exporter",
