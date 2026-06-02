@@ -1,16 +1,10 @@
 {
   "permissions": {
+    "defaultMode": "acceptEdits",
     "allow": [
-      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --no-git --yes)",
-      "Bash(npm install *)",
-      "Bash(npx tsc *)",
-      "Bash(npm run *)",
-      "Bash(git init *)",
-      "Bash(git add *)",
-      "Bash(git commit -m ' *)",
-      "Bash(git config *)",
-      "Bash(gh repo *)",
-      "Bash(npx next *)"
+      "Bash(*)",
+      "Write(*)",
+      "Edit(*)"
     ]
   }
 }

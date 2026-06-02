@@ -4,6 +4,7 @@
 @import "./hub.css";
 @import "./beautifier.css";
 @import "./bulk-downloader.css";
+@import "./profiles.css";
 
 /* ── Design Tokens — Light Mode ── */
 :root {

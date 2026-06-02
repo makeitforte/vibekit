@@ -3,10 +3,13 @@
 import { Sidebar } from "./sidebar";
 import { CommandPalette } from "@/components/command-palette";
 import { PaletteProvider, usePalette } from "@/lib/palette-context";
+import { ProfilesProvider, useProfiles } from "@/lib/profiles-context";
+import { OnboardingModal } from "@/components/onboarding/onboarding-modal";
 import { Toaster } from "sonner";
 
 function ShellInner({ children }: { children: React.ReactNode }) {
   const { open, openPalette, closePalette } = usePalette();
+  const { needsOnboarding } = useProfiles();
 
   return (
     <div className="app-shell">
@@ -26,14 +29,17 @@ function ShellInner({ children }: { children: React.ReactNode }) {
           },
         }}
       />
+      {needsOnboarding && <OnboardingModal />}
     </div>
   );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <PaletteProvider>
-      <ShellInner>{children}</ShellInner>
-    </PaletteProvider>
+    <ProfilesProvider>
+      <PaletteProvider>
+        <ShellInner>{children}</ShellInner>
+      </PaletteProvider>
+    </ProfilesProvider>
   );
 }

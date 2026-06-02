@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Code2, Braces, Regex, Palette, GitCompare, Binary, FileDown, FolderDown,
-  GitCommitHorizontal, Sparkles, Wand2, Settings2, Search,
+  GitCommitHorizontal, Sparkles, Wand2, Search,
 } from "lucide-react";
+import { ProfileSwitcher } from "./profile-switcher";
 import { TOOLS, ASSIST } from "@/data/tools";
 import { cn } from "@/lib/cn";
 
@@ -91,16 +92,9 @@ export function Sidebar({ onOpenPalette }: SidebarProps) {
         </nav>
       </div>
 
-      {/* Footer */}
-      <div className="sidebar-footer">
-        <div className="avatar">JK</div>
-        <div className="min-w-0">
-          <div className="footer-name">Jordan Kessler</div>
-          <div className="footer-plan">Free plan</div>
-        </div>
-        <button className="settings-btn" title="Settings" type="button">
-          <Settings2 size={16} />
-        </button>
+      {/* Footer — profile switcher */}
+      <div className="sidebar-footer" style={{ padding: 0 }}>
+        <ProfileSwitcher />
       </div>
     </aside>
   );
