@@ -31,3 +31,8 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+.env
+DATABASE CREDENTIAL.txt
+*CREDENTIAL*
+*credential*
+*password*
