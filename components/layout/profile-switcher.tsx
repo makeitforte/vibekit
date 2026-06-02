@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Plus, Trash2, X } from "lucide-react";
+import { Check, Plus, Trash2, X, LogIn, LogOut, User } from "lucide-react";
 import { AVATAR_COLORS, GUEST_PROFILE, getInitials } from "@/lib/profiles";
 import { useProfiles } from "@/lib/profiles-context";
 
 export function ProfileSwitcher() {
-  const { active, profiles, switchProfile, addProfile, removeProfile } = useProfiles();
+  const {
+    active, localProfiles, user, authLoading,
+    switchLocalProfile, addLocalProfile, removeLocalProfile,
+    openLogin, signOut,
+  } = useProfiles();
+
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -28,8 +33,8 @@ export function ProfileSwitcher() {
 
   const handleCreate = () => {
     if (!newName.trim()) return;
-    const profile = addProfile(newName.trim(), newColor);
-    switchProfile(profile.id);
+    const profile = addLocalProfile(newName.trim(), newColor);
+    switchLocalProfile(profile.id);
     setCreating(false);
     setNewName("");
     setNewColor(AVATAR_COLORS[0]);
@@ -38,32 +43,100 @@ export function ProfileSwitcher() {
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    // Must keep at least 1 profile if any exist
-    if (profiles.length <= 1 && id !== GUEST_PROFILE.id) return;
-    removeProfile(id);
+    if (localProfiles.length <= 1) return;
+    removeLocalProfile(id);
   };
 
   const canDelete = (id: string) =>
-    id !== GUEST_PROFILE.id && !(profiles.length === 1 && active.id === id);
+    id !== GUEST_PROFILE.id && localProfiles.length > 1;
 
+  const handleSignOut = async () => {
+    setOpen(false);
+    await signOut();
+  };
+
+  // ── Logged-in view ─────────────────────────────────────────────────────────
+  if (user && !authLoading) {
+    return (
+      <div ref={ref} className="ps-wrap">
+        <button
+          className="ps-trigger"
+          onClick={() => setOpen((o) => !o)}
+          type="button"
+        >
+          <div className="avatar" style={{ background: active.color }}>
+            {active.initials}
+          </div>
+          <div className="min-w-0">
+            <div className="footer-name">{active.name}</div>
+            <div className="footer-plan" style={{ color: "var(--accent-text)" }}>
+              Signed in
+            </div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            style={{ color: "var(--fg-4)", flexShrink: 0, transition: "transform 120ms",
+                     transform: open ? "rotate(180deg)" : "none" }}>
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+        </button>
+
+        {open && (
+          <div className="ps-popover">
+            <div className="ps-popover-header">
+              <span>Account</span>
+              <button className="icon-btn" style={{ width: 26, height: 26 }}
+                onClick={() => setOpen(false)} type="button">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="ps-list">
+              <div className="ps-item active" style={{ cursor: "default" }}>
+                <div className="ps-avatar" style={{ background: active.color }}>
+                  {active.initials}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="ps-name">{active.name}</div>
+                  <div style={{ fontSize: 11, color: "var(--fg-4)", fontFamily: "var(--font-mono)" }}>
+                    {user.email}
+                  </div>
+                </div>
+                <Check size={14} className="ps-check" />
+              </div>
+            </div>
+            <button className="ps-new-btn" style={{ color: "var(--danger-text)" }}
+              onClick={handleSignOut} type="button">
+              <LogOut size={14} /> Sign out
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Guest / local profile view ─────────────────────────────────────────────
   return (
     <div ref={ref} className="ps-wrap">
-      {/* Trigger: the sidebar footer row */}
-      <button className="ps-trigger" onClick={() => { setOpen((o) => !o); setCreating(false); }} type="button">
-        <div className="avatar" style={{ background: active.color }}>{active.initials}</div>
+      <button
+        className="ps-trigger"
+        onClick={() => { setOpen((o) => !o); setCreating(false); }}
+        type="button"
+      >
+        <div className="avatar" style={{ background: active.color }}>
+          {active.initials}
+        </div>
         <div className="min-w-0">
           <div className="footer-name">{active.name}</div>
           <div className="footer-plan">{active.isGuest ? "Guest" : "Free plan"}</div>
         </div>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
           style={{ color: "var(--fg-4)", flexShrink: 0, transition: "transform 120ms",
                    transform: open ? "rotate(180deg)" : "none" }}>
           <polyline points="18 15 12 9 6 15" />
         </svg>
       </button>
 
-      {/* Popover */}
       {open && (
         <div className="ps-popover">
           <div className="ps-popover-header">
@@ -75,10 +148,10 @@ export function ProfileSwitcher() {
           </div>
 
           <div className="ps-list">
-            {/* Guest */}
+            {/* Guest profile */}
             <button
               className={`ps-item${active.id === GUEST_PROFILE.id ? " active" : ""}`}
-              onClick={() => { switchProfile(GUEST_PROFILE.id); setOpen(false); }}
+              onClick={() => { switchLocalProfile(GUEST_PROFILE.id); setOpen(false); }}
               type="button"
             >
               <div className="ps-avatar" style={{ background: GUEST_PROFILE.color }}>
@@ -88,26 +161,22 @@ export function ProfileSwitcher() {
               {active.id === GUEST_PROFILE.id && <Check size={14} className="ps-check" />}
             </button>
 
-            {/* Named profiles */}
-            {profiles.map((p) => (
+            {/* Named local profiles */}
+            {localProfiles.map((p) => (
               <button
                 key={p.id}
                 className={`ps-item${active.id === p.id ? " active" : ""}`}
-                onClick={() => { switchProfile(p.id); setOpen(false); }}
+                onClick={() => { switchLocalProfile(p.id); setOpen(false); }}
                 type="button"
               >
                 <div className="ps-avatar" style={{ background: p.color }}>{p.initials}</div>
                 <span className="ps-name">{p.name}</span>
                 {active.id === p.id && <Check size={14} className="ps-check" />}
                 {canDelete(p.id) && (
-                  <span
-                    className="ps-delete"
-                    role="button"
-                    tabIndex={0}
+                  <span className="ps-delete" role="button" tabIndex={0}
                     title="Delete profile"
                     onClick={(e) => handleDelete(e, p.id)}
-                    onKeyDown={(e) => e.key === "Enter" && handleDelete(e as unknown as React.MouseEvent, p.id)}
-                  >
+                    onKeyDown={(e) => e.key === "Enter" && handleDelete(e as unknown as React.MouseEvent, p.id)}>
                     <Trash2 size={12} />
                   </span>
                 )}
@@ -115,10 +184,10 @@ export function ProfileSwitcher() {
             ))}
           </div>
 
-          {/* Create new */}
+          {/* New local profile */}
           {!creating ? (
             <button className="ps-new-btn" onClick={() => setCreating(true)} type="button">
-              <Plus size={14} /> New profile
+              <Plus size={14} /> New local profile
             </button>
           ) : (
             <div className="ps-create-form">
@@ -128,13 +197,14 @@ export function ProfileSwitcher() {
                 value={newName}
                 autoFocus
                 onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreating(false); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreate();
+                  if (e.key === "Escape") setCreating(false);
+                }}
               />
               <div className="ps-color-row">
                 {AVATAR_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
+                  <button key={c} type="button"
                     className={`ps-color-dot${newColor === c ? " selected" : ""}`}
                     style={{ background: c }}
                     onClick={() => setNewColor(c)}
@@ -149,6 +219,19 @@ export function ProfileSwitcher() {
               </div>
             </div>
           )}
+
+          {/* Sign in CTA */}
+          <button
+            className="ps-signin-cta"
+            onClick={() => { setOpen(false); openLogin(); }}
+            type="button"
+          >
+            <LogIn size={14} />
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 12 }}>Sign in to VibeKit</div>
+              <div style={{ fontSize: 11, opacity: 0.7 }}>Sync preferences across devices</div>
+            </div>
+          </button>
         </div>
       )}
     </div>

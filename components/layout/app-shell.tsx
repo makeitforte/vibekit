@@ -5,11 +5,12 @@ import { CommandPalette } from "@/components/command-palette";
 import { PaletteProvider, usePalette } from "@/lib/palette-context";
 import { ProfilesProvider, useProfiles } from "@/lib/profiles-context";
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal";
+import { LoginModal } from "@/components/auth/login-modal";
 import { Toaster } from "sonner";
 
 function ShellInner({ children }: { children: React.ReactNode }) {
   const { open, openPalette, closePalette } = usePalette();
-  const { needsOnboarding } = useProfiles();
+  const { needsOnboarding, loginModalOpen, closeLogin } = useProfiles();
 
   return (
     <div className="app-shell">
@@ -30,6 +31,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
         }}
       />
       {needsOnboarding && <OnboardingModal />}
+      {loginModalOpen && <LoginModal onClose={closeLogin} />}
     </div>
   );
 }

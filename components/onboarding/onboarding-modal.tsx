@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { UserPlus, Zap } from "lucide-react";
-import { AVATAR_COLORS, getInitials } from "@/lib/profiles";
+import { UserPlus, Zap, LogIn } from "lucide-react";
+import { AVATAR_COLORS } from "@/lib/profiles";
+import { getInitials } from "@/lib/profiles";
 import { useProfiles } from "@/lib/profiles-context";
 
 export function OnboardingModal() {
-  const { addProfile, switchProfile, completeOnboarding } = useProfiles();
+  const {
+    addLocalProfile, switchLocalProfile,
+    completeOnboarding, openLogin,
+  } = useProfiles();
+
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>(AVATAR_COLORS[0]);
   const [error, setError] = useState("");
@@ -15,14 +20,19 @@ export function OnboardingModal() {
 
   const handleCreate = () => {
     if (!name.trim()) { setError("Please enter your name."); return; }
-    const profile = addProfile(name.trim(), color);
-    switchProfile(profile.id);
+    const profile = addLocalProfile(name.trim(), color);
+    switchLocalProfile(profile.id);
     completeOnboarding();
   };
 
   const handleGuest = () => {
-    switchProfile("guest");
+    switchLocalProfile("guest");
     completeOnboarding();
+  };
+
+  const handleSignIn = () => {
+    completeOnboarding();
+    openLogin();
   };
 
   return (
@@ -67,9 +77,7 @@ export function OnboardingModal() {
           <label className="ob-label">Avatar color</label>
           <div className="ob-color-row">
             {AVATAR_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
+              <button key={c} type="button"
                 className={`ob-color-swatch${color === c ? " selected" : ""}`}
                 style={{ background: c }}
                 onClick={() => setColor(c)}
@@ -79,16 +87,24 @@ export function OnboardingModal() {
           </div>
         </div>
 
-        {/* CTA */}
         <button className="btn btn-primary ob-cta" onClick={handleCreate} type="button">
           <UserPlus size={16} /> Get started
         </button>
 
         <div className="ob-divider"><span>or</span></div>
 
-        <button className="ob-guest-btn" onClick={handleGuest} type="button">
-          <Zap size={14} /> Continue as Guest
-        </button>
+        <div className="ob-alt-row">
+          {/* Sign in */}
+          <button className="ob-alt-btn ob-signin" onClick={handleSignIn} type="button">
+            <LogIn size={14} />
+            Sign in
+          </button>
+          {/* Guest */}
+          <button className="ob-alt-btn" onClick={handleGuest} type="button">
+            <Zap size={14} />
+            Continue as Guest
+          </button>
+        </div>
       </div>
     </div>
   );
