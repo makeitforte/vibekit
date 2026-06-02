@@ -76,6 +76,24 @@ export function ProfilesProvider({ children }: { children: React.ReactNode }) {
 
     const supabase = createClient();
 
+    // ── Client-side 1-day inactivity logout (free-tier workaround) ──────────
+    // Supabase's inactivity timeout requires Pro plan, so we track last_active
+    // in localStorage and sign out if >24h have passed since the last visit.
+    const INACTIVITY_KEY = "vk_last_active";
+    const ONE_DAY_MS = 86_400_000;
+    const lastActive = Number(localStorage.getItem(INACTIVITY_KEY) ?? 0);
+    const sinceLastActive = Date.now() - lastActive;
+
+    if (lastActive > 0 && sinceLastActive > ONE_DAY_MS) {
+      // Been away >1 day — sign out silently before hydrating
+      supabase.auth.signOut().finally(() => {
+        localStorage.removeItem(INACTIVITY_KEY);
+      });
+    } else {
+      // Update timestamp on every visit
+      localStorage.setItem(INACTIVITY_KEY, String(Date.now()));
+    }
+
     const fetchProfile = async (uid: string) => {
       const { data } = await supabase
         .from("profiles")
