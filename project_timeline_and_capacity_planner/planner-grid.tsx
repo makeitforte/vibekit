@@ -366,10 +366,12 @@ export function PlannerGrid({
   const allTaskIds = sortedTasks.map(t => t.id);
 
   // ── Detect negative buffers (cascade needed) ──────────────────────────────
+  // Only flag weeks where capacity is explicitly set — weeks with capacity = 0
+  // (not yet configured) are ignored to avoid false positives.
   const negativeBufferCount = weeks.reduce((count, w) =>
     count + roles.filter(role => {
       const s = computeWeekRoleSummary(role.id, w, capacityMap, effortMap, allTaskIds);
-      return s.buffer < 0;
+      return s.capacity > 0 && s.buffer < 0;
     }).length, 0);
 
   // ── Empty state ────────────────────────────────────────────────────────────
@@ -842,7 +844,8 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         {weeks.map((w, wi) =>
           roles.map((role, ri) => {
             const s = computeWeekRoleSummary(role.id, w, capacityMap, effortMap, allTaskIds);
-            const cls = s.buffer < 0 ? "buf-neg buf-neg-bg" : "buf-pos";
+            const isOverCapacity = s.capacity > 0 && s.buffer < 0;
+            const cls = isOverCapacity ? "buf-neg buf-neg-bg" : "buf-pos";
             return (
               <td key={`${w}-${role.id}`} className={cn("sum-val", cls, ri === 0 && "wk-start")}>
                 {s.buffer > 0 ? `+${s.buffer}` : s.buffer < 0 ? s.buffer : "—"}
