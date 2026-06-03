@@ -67,6 +67,63 @@ const ALL_ITEM_STATUSES: { value: ProjectStatus | TaskStatus; label: string; dot
 // ── Role colour class (index-based) ──────────────────────────────────────────
 const ROLE_EC_CLASS = ["ec-be", "ec-fw", "ec-fa", "ec-fi", "ec-qa"];
 
+// ── ContextMenu ───────────────────────────────────────────────────────────────
+
+interface CtxState {
+  x: number; y: number;
+  id: string; type: "project" | "task";
+  projectId: string;
+  isArchived: boolean;
+}
+
+interface ContextMenuProps extends CtxState {
+  onClose: () => void;
+  onEditName: () => void;
+  onViewHistory: (projectId: string) => void;
+  onArchive: (id: string) => void;
+  onDelete: (id: string, type: "project" | "task") => void;
+}
+
+function ContextMenu({ x, y, id, type, projectId, isArchived, onClose, onEditName, onViewHistory, onArchive, onDelete }: ContextMenuProps) {
+  useEffect(() => {
+    const h = () => onClose();
+    document.addEventListener("mousedown", h, { once: true });
+    return () => document.removeEventListener("mousedown", h);
+  }, [onClose]);
+
+  // Flip up if near bottom of viewport
+  const top = y + 200 > window.innerHeight ? y - 200 : y;
+
+  return createPortal(
+    <div
+      className="ctx-menu"
+      style={{ top, left: x }}
+      onMouseDown={e => e.stopPropagation()}
+    >
+      <button className="ctx-item" onClick={() => { onEditName(); onClose(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit name
+      </button>
+      <button className="ctx-item" onClick={() => { onViewHistory(projectId); onClose(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        View history
+      </button>
+      {type === "project" && (
+        <button className="ctx-item" onClick={() => { onArchive(id); onClose(); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg>
+          Archive
+        </button>
+      )}
+      <div className="ctx-sep" />
+      <button className="ctx-item danger" onClick={() => { onDelete(id, type); onClose(); }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Delete
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
 // ── StatusPortal ─────────────────────────────────────────────────────────────
 
 interface StatusPortalProps {
@@ -269,6 +326,13 @@ export function PlannerGrid({
   const [priorityTarget, setPriorityTarget] = useState<{ rect: DOMRect; proj: Project } | null>(null);
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editingName,    setEditingName]    = useState("");
+  const [ctxMenu,        setCtxMenu]        = useState<CtxState | null>(null);
+
+  const openCtx = (e: React.MouseEvent, id: string, type: "project" | "task", projectId: string, isArchived: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, id, type, projectId, isArchived });
+  };
 
   // ── Drag & Drop ────────────────────────────────────────────────────────────
   const dragSrc = useRef<{ id: string; type: "project" | "task" } | null>(null);
@@ -552,6 +616,7 @@ export function PlannerGrid({
                     key={id}
                     className={cn("row-project", isSelected && "row-selected", isDragging && "row-dragging", isDropTarget && "row-drop-target")}
                     draggable
+                    onContextMenu={(e) => openCtx(e, id, "project", id, proj.is_archived)}
                     onDragStart={() => handleDragStart(id, "project")}
                     onDragOver={(e) => handleDragOver(e, id)}
                     onDrop={(e) => handleDrop(e, id)}
@@ -644,6 +709,10 @@ export function PlannerGrid({
                   key={id}
                   className={cn("row-task", isSelected && "row-selected", isDragging && "row-dragging", isDropTarget && "row-drop-target")}
                   draggable
+                  onContextMenu={(e) => {
+                    const parentProjId = sortedProjects.find(p => p.id === task.project_id)?.id ?? task.project_id;
+                    openCtx(e, id, "task", parentProjId, task.is_archived);
+                  }}
                   onDragStart={() => handleDragStart(id, "task")}
                   onDragOver={(e) => handleDragOver(e, id)}
                   onDrop={(e) => handleDrop(e, id)}
@@ -711,6 +780,28 @@ export function PlannerGrid({
           </tbody>
         </table>
       </div>
+
+      {/* Context menu */}
+      {ctxMenu && (
+        <ContextMenu
+          {...ctxMenu}
+          onClose={() => setCtxMenu(null)}
+          onEditName={() => {
+            const proj = projects.find(p => p.id === ctxMenu.id);
+            const task = tasks.find(t => t.id === ctxMenu.id);
+            const name = proj?.name ?? task?.name ?? "";
+            setEditingId(ctxMenu.id);
+            setEditingName(name);
+          }}
+          onViewHistory={onRowHistoryClick}
+          onArchive={onArchiveProject}
+          onDelete={(id, type) => {
+            if (!window.confirm("Delete this item? This cannot be undone.")) return;
+            if (type === "project") onDeleteProject(id);
+            else onDeleteTask(id);
+          }}
+        />
+      )}
 
       {/* Priority portal */}
       {priorityTarget && (
