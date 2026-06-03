@@ -79,6 +79,16 @@ export async function updateProject(
   if (error) throw error;
 }
 
+export async function deleteProject(id: string): Promise<void> {
+  const { error } = await sb().from("planner_projects").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  const { error } = await sb().from("planner_tasks").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function archiveProject(id: string, archive: boolean): Promise<void> {
   const { error } = await sb()
     .from("planner_projects")
@@ -166,23 +176,20 @@ export async function upsertEffort(
   weekStart: string,
   mandays: number,
 ): Promise<void> {
-  if (mandays === 0) {
-    // Delete instead of keeping a zero row
-    await sb()
-      .from("planner_weekly_efforts")
-      .delete()
-      .eq("task_id", taskId)
-      .eq("role_id", roleId)
-      .eq("week_start", weekStart);
-    return;
-  }
-  const { error } = await sb()
+  // delete-then-insert: avoids Supabase upsert onConflict silent-failure for new rows
+  await sb()
     .from("planner_weekly_efforts")
-    .upsert(
-      { task_id: taskId, role_id: roleId, user_id: userId, week_start: weekStart, mandays },
-      { onConflict: "task_id,role_id,week_start" },
-    );
-  if (error) throw error;
+    .delete()
+    .eq("task_id", taskId)
+    .eq("role_id", roleId)
+    .eq("week_start", weekStart);
+
+  if (mandays > 0) {
+    const { error } = await sb()
+      .from("planner_weekly_efforts")
+      .insert({ task_id: taskId, role_id: roleId, user_id: userId, week_start: weekStart, mandays });
+    if (error) throw error;
+  }
 }
 
 /** Batch upsert/delete many effort cells at once (used by cascade) */

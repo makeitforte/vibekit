@@ -10,8 +10,8 @@ import {
 } from "./types";
 import {
   fetchRoles, seedDefaultRoles,
-  fetchProjects, createProject, updateProject, reorderProjects, archiveProject,
-  fetchTasks, createTask, updateTask, reorderTasks,
+  fetchProjects, createProject, updateProject, reorderProjects, archiveProject, deleteProject,
+  fetchTasks, createTask, updateTask, reorderTasks, deleteTask,
   fetchWeeklyEfforts, upsertEffort, buildEffortMap,
   fetchResourceCapacity, upsertCapacity, buildCapacityMap,
   fetchHistory, addHistory, type HistoryEntry,
@@ -304,6 +304,29 @@ export function PlannerShell() {
     }
   }, [userId, state.capacityMap, state.roles]);
 
+  const handleDeleteProject = useCallback(async (id: string) => {
+    if (!userId) return;
+    dispatch({ type: "SET_PROJECTS", projects: state.projects.filter(p => p.id !== id) });
+    dispatch({ type: "SET_TASKS",    tasks:    state.tasks.filter(t => t.project_id !== id) });
+    await deleteProject(id);
+  }, [userId, state.projects, state.tasks]);
+
+  const handleDeleteTask = useCallback(async (id: string) => {
+    if (!userId) return;
+    dispatch({ type: "SET_TASKS", tasks: state.tasks.filter(t => t.id !== id) });
+    await deleteTask(id);
+  }, [userId, state.tasks]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (!userId) return;
+    if (!window.confirm(`Delete ${state.selectedRowIds.size} item(s)? This cannot be undone.`)) return;
+    for (const id of state.selectedRowIds) {
+      if (state.projects.some(p => p.id === id)) await handleDeleteProject(id);
+      else if (state.tasks.some(t => t.id === id)) await handleDeleteTask(id);
+    }
+    dispatch({ type: "CLEAR_SELECTION" });
+  }, [userId, state.selectedRowIds, state.projects, state.tasks, handleDeleteProject, handleDeleteTask]);
+
   const handleArchiveProject = useCallback(async (id: string) => {
     if (!userId) return;
     const proj = state.projects.find(p => p.id === id);
@@ -334,6 +357,11 @@ export function PlannerShell() {
       dispatch({ type: "SET_PROJECTS", projects: state.projects });
     }
   }, [userId, state.projects]);
+
+  const handleRowHistoryClick = useCallback((projectId: string) => {
+    dispatch({ type: "SET_HISTORY_FILTER", projectId });
+    if (!state.isHistoryOpen) dispatch({ type: "TOGGLE_HISTORY" });
+  }, [state.isHistoryOpen]);
 
   const handleRunCascade = useCallback(async () => {
     if (!userId) return;
@@ -499,7 +527,10 @@ export function PlannerShell() {
             onUpsertEffort={handleUpsertEffort}
             onUpsertCapacity={handleUpsertCapacity}
             onArchiveProject={handleArchiveProject}
+            onDeleteProject={handleDeleteProject}
+            onDeleteTask={handleDeleteTask}
             onRunCascade={handleRunCascade}
+            onRowHistoryClick={handleRowHistoryClick}
           />
         ) : state.view === "timeline" ? (
           <PlannerTimeline
@@ -537,7 +568,8 @@ export function PlannerShell() {
         <button className="bulk-action-btn" onClick={handleBulkArchive}>Archive</button>
         <button className="bulk-action-btn">Mark done</button>
         <span className="bulk-sep" />
-        <button className="bulk-action-btn danger">Delete</button>
+        <button className="bulk-action-btn danger" onClick={handleBulkDelete}>Delete</button>
+
         <span className="bulk-sep" />
         <button className="bulk-action-btn cancel" onClick={() => dispatch({ type: "CLEAR_SELECTION" })}>
           <X size={12} /> Cancel

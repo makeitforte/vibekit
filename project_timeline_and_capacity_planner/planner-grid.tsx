@@ -34,7 +34,10 @@ interface Props {
   onUpsertEffort: (taskId: string, roleId: string, weekStart: string, mandays: number, oldMandays: number) => void;
   onUpsertCapacity: (roleId: string, weekStart: string, field: "capacity" | "taken_other" | "holiday" | "buffer_threshold", value: number) => void;
   onArchiveProject: (id: string) => void;
+  onDeleteProject: (id: string) => void;
+  onDeleteTask: (id: string) => void;
   onRunCascade: () => void;
+  onRowHistoryClick: (projectId: string) => void;
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -257,12 +260,15 @@ function CapInput({ value, className, isWeekStart, onChange }: CapInputProps) {
 
 export function PlannerGrid({
   roles, projects, tasks, effortMap, capacityMap, dateRange, weeks, onRunCascade,
+  onDeleteProject, onDeleteTask, onRowHistoryClick,
   selectedRowIds, onDateRangeChange, onToggleSelect, onReorder,
   onUpdateProject, onAddTask, onUpdateTask, onUpsertEffort, onUpsertCapacity,
   onArchiveProject,
 }: Props) {
   const [statusTarget,   setStatusTarget]   = useState<{ rect: DOMRect; id: string; type: "project" | "task" } | null>(null);
   const [priorityTarget, setPriorityTarget] = useState<{ rect: DOMRect; proj: Project } | null>(null);
+  const [editingId,      setEditingId]      = useState<string | null>(null);
+  const [editingName,    setEditingName]    = useState("");
 
   // ── Drag & Drop ────────────────────────────────────────────────────────────
   const dragSrc = useRef<{ id: string; type: "project" | "task" } | null>(null);
@@ -560,12 +566,25 @@ export function PlannerGrid({
                     {/* Name + inline status */}
                     <td className="col-feat">
                       <div className="feat-cell">
-                        <span className="proj-icon">
+                        <span className="proj-icon" style={{ cursor: "pointer" }} onClick={() => onRowHistoryClick(proj.id)} title="View history">
                           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5">
                             <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
                           </svg>
                         </span>
-                        <span className="feat-name">{proj.name}</span>
+                        {editingId === proj.id ? (
+                          <input
+                            autoFocus
+                            className="feat-name"
+                            style={{ background: "transparent", border: "none", outline: "1px solid var(--accent-border)", borderRadius: 3, padding: "0 2px", fontWeight: 600, fontSize: 12.5, flex: 1, minWidth: 0 }}
+                            value={editingName}
+                            onChange={e => setEditingName(e.target.value)}
+                            onBlur={() => { if (editingName.trim()) onUpdateProject(proj.id, { name: editingName.trim() }); setEditingId(null); }}
+                            onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditingId(null); } }}
+                            onClick={e => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span className="feat-name" onDoubleClick={e => { e.stopPropagation(); setEditingId(proj.id); setEditingName(proj.name); }} title="Double-click to edit">{proj.name}</span>
+                        )}
                         <button
                           className={cn("inline-status", STATUS_CSS[proj.status])}
                           onClick={(e) => {
@@ -636,7 +655,20 @@ export function PlannerGrid({
                   <td className="col-drag drag-handle">⠿</td>
                   <td className="col-feat">
                     <div className="feat-cell">
-                      <span className="feat-name">{task.name}</span>
+                      {editingId === task.id ? (
+                        <input
+                          autoFocus
+                          className="feat-name"
+                          style={{ background: "transparent", border: "none", outline: "1px solid var(--accent-border)", borderRadius: 3, padding: "0 2px", fontSize: 12.5, flex: 1, minWidth: 0, color: "var(--fg-2)", paddingLeft: 8 }}
+                          value={editingName}
+                          onChange={e => setEditingName(e.target.value)}
+                          onBlur={() => { if (editingName.trim()) onUpdateTask(task.id, { name: editingName.trim() }); setEditingId(null); }}
+                          onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingId(null); }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className="feat-name" onDoubleClick={e => { e.stopPropagation(); setEditingId(task.id); setEditingName(task.name); }} title="Double-click to edit">{task.name}</span>
+                      )}
                       <button
                         className={cn("inline-status", STATUS_CSS[task.status])}
                         onClick={(e) => {
