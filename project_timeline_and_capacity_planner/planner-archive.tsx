@@ -1,13 +1,13 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { Project, Task } from "./types";
+import { Project, Task, ProjectStatus } from "./types";
 
 interface Props {
   projects: Project[];
   tasks: Task[];
   onRestore: (id: string) => void;
-  onChangeStatus: (id: string, patch: { status: "active" | "done" | "cancelled" }) => void;
+  onChangeStatus?: (id: string, patch: { status: ProjectStatus }) => void;
 }
 
 export function PlannerArchive({ projects, tasks, onRestore }: Props) {
@@ -45,9 +45,9 @@ export function PlannerArchive({ projects, tasks, onRestore }: Props) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 5 }}>
                 <span className="archive-card-name">{proj.name}</span>
-                <span className={`inline-status ${proj.status === "done" ? "st-dn" : "st-cx"}`} style={{ cursor: "default" }}>
-                  <span className="st-dot" style={{ background: proj.status === "done" ? "var(--accent)" : "var(--fg-4)" }} />
-                  {proj.status === "done" ? "Done" : "Cancelled"}
+                <span className="inline-status st-td" style={{ cursor: "default" }}>
+                  <span className="st-dot" />
+                  {proj.status.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase())}
                 </span>
               </div>
               <div className="archive-card-meta">

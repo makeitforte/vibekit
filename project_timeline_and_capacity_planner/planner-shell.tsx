@@ -10,7 +10,7 @@ import {
 } from "./types";
 import {
   fetchRoles, seedDefaultRoles,
-  fetchProjects, createProject, updateProject, reorderProjects,
+  fetchProjects, createProject, updateProject, reorderProjects, archiveProject,
   fetchTasks, createTask, updateTask, reorderTasks,
   fetchWeeklyEfforts, upsertEffort, buildEffortMap,
   fetchResourceCapacity, upsertCapacity, buildCapacityMap,
@@ -152,8 +152,8 @@ export function PlannerShell() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const weeks = getWeekStarts(state.dateRange);
-  const activeProjects  = state.projects.filter(p => p.status === "active");
-  const archivedProjects = state.projects.filter(p => p.status !== "active");
+  const activeProjects   = state.projects.filter(p => !p.is_archived);
+  const archivedProjects = state.projects.filter(p => p.is_archived);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -307,32 +307,38 @@ export function PlannerShell() {
   const handleArchiveProject = useCallback(async (id: string) => {
     if (!userId) return;
     const proj = state.projects.find(p => p.id === id);
-    await handleUpdateProject(id, { status: "done" }, {
-      project_id: id,
-      change_type: "project_archived",
-      old_value: "active",
-      new_value: "done",
-      notes: proj?.name,
-    });
-  }, [handleUpdateProject, state.projects, userId]);
+    // Optimistic update
+    const updated = state.projects.map(p => p.id === id ? { ...p, is_archived: true } : p);
+    dispatch({ type: "SET_PROJECTS", projects: updated });
+    try {
+      await archiveProject(id, true);
+      await addHistory(userId, { project_id: id, change_type: "project_archived", notes: proj?.name });
+      const history = await fetchHistory(userId);
+      dispatch({ type: "SET_HISTORY", history });
+    } catch (e) {
+      dispatch({ type: "SET_PROJECTS", projects: state.projects });
+    }
+  }, [userId, state.projects]);
 
   const handleRestoreProject = useCallback(async (id: string) => {
     if (!userId) return;
     const proj = state.projects.find(p => p.id === id);
-    await handleUpdateProject(id, { status: "active" }, {
-      project_id: id,
-      change_type: "project_restored",
-      old_value: "done",
-      new_value: "active",
-      notes: proj?.name,
-    });
-  }, [handleUpdateProject, state.projects, userId]);
+    const updated = state.projects.map(p => p.id === id ? { ...p, is_archived: false } : p);
+    dispatch({ type: "SET_PROJECTS", projects: updated });
+    try {
+      await archiveProject(id, false);
+      await addHistory(userId, { project_id: id, change_type: "project_restored", notes: proj?.name });
+      const history = await fetchHistory(userId);
+      dispatch({ type: "SET_HISTORY", history });
+    } catch (e) {
+      dispatch({ type: "SET_PROJECTS", projects: state.projects });
+    }
+  }, [userId, state.projects]);
 
   const handleBulkArchive = useCallback(async () => {
     if (!userId) return;
     for (const id of state.selectedRowIds) {
-      const proj = state.projects.find(p => p.id === id);
-      if (proj) await handleArchiveProject(id);
+      if (state.projects.some(p => p.id === id)) await handleArchiveProject(id);
     }
     dispatch({ type: "CLEAR_SELECTION" });
   }, [userId, state.selectedRowIds, state.projects, handleArchiveProject]);

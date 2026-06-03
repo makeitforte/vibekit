@@ -73,9 +73,25 @@ export async function createProject(
 
 export async function updateProject(
   id: string,
-  patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label">>,
+  patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label" | "is_archived">>,
 ): Promise<void> {
   const { error } = await sb().from("planner_projects").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function archiveProject(id: string, archive: boolean): Promise<void> {
+  const { error } = await sb()
+    .from("planner_projects")
+    .update({ is_archived: archive })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function archiveTask(id: string, archive: boolean): Promise<void> {
+  const { error } = await sb()
+    .from("planner_tasks")
+    .update({ is_archived: archive })
+    .eq("id", id);
   if (error) throw error;
 }
 

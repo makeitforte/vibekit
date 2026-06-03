@@ -41,27 +41,18 @@ interface Props {
 const STATUS_CSS: Record<TaskStatus | ProjectStatus, string> = {
   in_progress: "st-ip", todo: "st-td", done: "st-dn",
   released: "st-rl", cancelled: "st-cx",
-  active: "st-ip",    // project "active" → blue "In Progress" look
 };
 const STATUS_LABEL: Record<TaskStatus | ProjectStatus, string> = {
   in_progress: "In Progress", todo: "To Do", done: "Done",
   released: "Released", cancelled: "Cancelled",
-  active: "In Progress",  // show "In Progress" for active projects
 };
 const STATUS_DOT_COLOR: Record<TaskStatus | ProjectStatus, string> = {
   in_progress: "#3b82f6", todo: "var(--fg-4)", done: "var(--accent)",
-  released: "#8b5cf6", cancelled: "var(--fg-4)", active: "#3b82f6",
+  released: "#8b5cf6", cancelled: "var(--fg-4)",
 };
 
-// Project statuses — DB only accepts active/done/cancelled
-const PROJECT_STATUSES: { value: ProjectStatus; label: string; dot: string }[] = [
-  { value: "active",    label: "In Progress", dot: "#3b82f6" },
-  { value: "done",      label: "Done",        dot: "var(--accent)" },
-  { value: "cancelled", label: "Cancelled",   dot: "var(--fg-4)" },
-];
-
-// Task statuses — full set
-const TASK_STATUSES: { value: TaskStatus; label: string; dot: string }[] = [
+// Unified statuses — same for both projects and tasks
+const ALL_ITEM_STATUSES: { value: ProjectStatus | TaskStatus; label: string; dot: string }[] = [
   { value: "todo",        label: "To Do",       dot: "var(--fg-4)" },
   { value: "in_progress", label: "In Progress", dot: "#3b82f6" },
   { value: "done",        label: "Done",        dot: "var(--accent)" },
@@ -76,12 +67,11 @@ const ROLE_EC_CLASS = ["ec-be", "ec-fw", "ec-fa", "ec-fi", "ec-qa"];
 
 interface StatusPortalProps {
   rect: DOMRect;
-  kind: "project" | "task";
   onSelect: (status: TaskStatus | ProjectStatus) => void;
   onClose: () => void;
 }
 
-function StatusPortal({ rect, kind, onSelect, onClose }: StatusPortalProps) {
+function StatusPortal({ rect, onSelect, onClose }: StatusPortalProps) {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       // Only close if the click is outside the portal
@@ -93,9 +83,6 @@ function StatusPortal({ rect, kind, onSelect, onClose }: StatusPortalProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
-  const options = kind === "project" ? PROJECT_STATUSES : TASK_STATUSES;
-
-  // Position: prefer below, flip up if near bottom of viewport
   const top = rect.bottom + 4 + window.scrollY;
   const left = rect.left + window.scrollX;
 
@@ -119,7 +106,7 @@ function StatusPortal({ rect, kind, onSelect, onClose }: StatusPortalProps) {
       }}>
         Change Status
       </div>
-      {options.map(({ value, label, dot }) => (
+      {ALL_ITEM_STATUSES.map(({ value, label, dot }) => (
         <div
           key={value}
           className="status-portal-item"
@@ -664,12 +651,10 @@ export function PlannerGrid({
       {statusTarget && (
         <StatusPortal
           rect={statusTarget.rect}
-          kind={statusTarget.type}
           onClose={() => setStatusTarget(null)}
           onSelect={(status) => {
             if (statusTarget.type === "project") {
               const proj = projects.find(p => p.id === statusTarget.id);
-              // For projects: done/cancelled → also archive
               onUpdateProject(statusTarget.id, { status: status as ProjectStatus }, {
                 project_id: statusTarget.id,
                 change_type: "status_change",
@@ -678,10 +663,7 @@ export function PlannerGrid({
                 new_value: status,
                 notes: proj?.name,
               });
-              // Archive triggers separately only for done/cancelled
-              if (status === "done" || status === "cancelled") {
-                onArchiveProject(statusTarget.id);
-              }
+              // Status change alone does NOT archive — user must click Archive explicitly
             } else {
               const task = tasks.find(t => t.id === statusTarget.id);
               onUpdateTask(statusTarget.id, { status: status as TaskStatus }, {

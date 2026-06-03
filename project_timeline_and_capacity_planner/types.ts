@@ -1,7 +1,9 @@
 // ── Domain types ──────────────────────────────────────────────────────────────
 
-export type ProjectStatus = "active" | "done" | "cancelled";
-export type TaskStatus = "todo" | "in_progress" | "done" | "released" | "cancelled";
+// Projects and tasks share the same status values
+export type ItemStatus = "todo" | "in_progress" | "done" | "released" | "cancelled";
+export type ProjectStatus = ItemStatus;
+export type TaskStatus = ItemStatus;
 export type ChangeType =
   | "priority_change"
   | "mandays_change"
@@ -27,8 +29,9 @@ export interface Project {
   user_id: string;
   name: string;
   priority_order: number;
-  priority_label: "P1" | "P2" | "P3" | null; // user-set label, independent of order
+  priority_label: "P1" | "P2" | "P3" | null;
   status: ProjectStatus;
+  is_archived: boolean;
   eta: string | null;
   notes: string | null;
   created_at: string;
@@ -42,6 +45,7 @@ export interface Task {
   name: string;
   priority_order: number;
   status: TaskStatus;
+  is_archived: boolean;
   eta: string | null;
   notes: string | null;
   links: string[] | null;
