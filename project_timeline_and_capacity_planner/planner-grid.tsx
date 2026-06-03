@@ -28,7 +28,7 @@ interface Props {
   onDateRangeChange: (range: PlannerDateRange) => void;
   onToggleSelect: (id: string) => void;
   onReorder: (projectIds: string[], taskIds: string[], historyEntries?: HistoryEntry[]) => void;
-  onUpdateProject: (id: string, patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order">>, historyEntry?: HistoryEntry) => void;
+  onUpdateProject: (id: string, patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label">>, historyEntry?: HistoryEntry) => void;
   onAddTask: (projectId: string) => void;
   onUpdateTask: (id: string, patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "priority_order" | "project_id">>, historyEntry?: HistoryEntry) => void;
   onUpsertEffort: (taskId: string, roleId: string, weekStart: string, mandays: number, oldMandays: number) => void;
@@ -138,14 +138,59 @@ function StatusPortal({ rect, kind, onSelect, onClose }: StatusPortalProps) {
   );
 }
 
-// ── Priority badge label ──────────────────────────────────────────────────────
-function getPriBadgeClass(order: number) {
-  if (order === 0) return "pri-badge pri-1";
-  if (order === 1) return "pri-badge pri-2";
-  return "pri-badge pri-3";
+// ── Priority badge ────────────────────────────────────────────────────────────
+const PRI_LEVELS: ("P1" | "P2" | "P3")[] = ["P1", "P2", "P3"];
+const PRI_CLASS: Record<string, string> = { P1: "pri-badge pri-1", P2: "pri-badge pri-2", P3: "pri-badge pri-3" };
+
+function resolveLabel(proj: Project, order: number): "P1" | "P2" | "P3" {
+  if (proj.priority_label) return proj.priority_label;
+  if (order === 0) return "P1";
+  if (order === 1) return "P2";
+  return "P3";
 }
-function getPriLabel(order: number) {
-  return `P${Math.min(order + 1, 3)}`; // max P3
+
+interface PriorityPortalProps {
+  rect: DOMRect;
+  current: "P1" | "P2" | "P3";
+  onSelect: (label: "P1" | "P2" | "P3") => void;
+  onClose: () => void;
+}
+
+function PriorityPortal({ rect, current, onSelect, onClose }: PriorityPortalProps) {
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const el = document.getElementById("pri-portal-inner");
+      if (el && el.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      id="pri-portal-inner"
+      className="status-portal"
+      style={{ position: "absolute", top: rect.bottom + 4 + window.scrollY, left: rect.left + window.scrollX, minWidth: 100 }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div style={{ padding: "6px 10px 4px", fontFamily: "var(--font-mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--fg-4)", borderBottom: "1px solid var(--border-subtle)", marginBottom: 4 }}>
+        Set Priority
+      </div>
+      {PRI_LEVELS.map((p) => (
+        <div
+          key={p}
+          className="status-portal-item"
+          style={{ fontWeight: p === current ? 700 : undefined }}
+          onMouseDown={(e) => { e.stopPropagation(); onSelect(p); onClose(); }}
+        >
+          <span className={PRI_CLASS[p]} style={{ padding: "1px 6px", fontSize: 10 }}>{p}</span>
+          {p === current && <span style={{ marginLeft: "auto", color: "var(--accent-text)", fontSize: 10 }}>✓</span>}
+        </div>
+      ))}
+    </div>,
+    document.body,
+  );
 }
 
 // ── EffortInput ───────────────────────────────────────────────────────────────
@@ -228,10 +273,12 @@ export function PlannerGrid({
   onUpdateProject, onAddTask, onUpdateTask, onUpsertEffort, onUpsertCapacity,
   onArchiveProject,
 }: Props) {
-  const [statusTarget, setStatusTarget] = useState<{ rect: DOMRect; id: string; type: "project" | "task" } | null>(null);
+  const [statusTarget,   setStatusTarget]   = useState<{ rect: DOMRect; id: string; type: "project" | "task" } | null>(null);
+  const [priorityTarget, setPriorityTarget] = useState<{ rect: DOMRect; proj: Project } | null>(null);
 
   // ── Drag & Drop ────────────────────────────────────────────────────────────
   const dragSrc = useRef<{ id: string; type: "project" | "task" } | null>(null);
+  const [draggingId, setDraggingId]     = useState<string | null>(null); // triggers re-render on drag end
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   const getProjectIndex = (id: string) =>
@@ -242,6 +289,7 @@ export function PlannerGrid({
 
   const handleDragStart = (id: string, type: "project" | "task") => {
     dragSrc.current = { id, type };
+    setDraggingId(id);
   };
 
   const handleDragOver = (e: React.DragEvent, id: string) => {
@@ -443,8 +491,8 @@ export function PlannerGrid({
 
               const isProject = row.kind === "project";
               const id = row.data.id;
-              const isSelected = selectedRowIds.has(id);
-              const isDragging = dragSrc.current?.id === id;
+              const isSelected   = selectedRowIds.has(id);
+              const isDragging   = draggingId === id;
               const isDropTarget = dropTargetId === id;
 
               if (isProject) {
@@ -462,7 +510,7 @@ export function PlannerGrid({
                     onDragStart={() => handleDragStart(id, "project")}
                     onDragOver={(e) => handleDragOver(e, id)}
                     onDrop={(e) => handleDrop(e, id)}
-                    onDragEnd={() => setDropTargetId(null)}
+                    onDragEnd={() => { setDropTargetId(null); setDraggingId(null); dragSrc.current = null; }}
                   >
                     {/* Checkbox */}
                     <td className="col-cb cb-cell">
@@ -491,9 +539,20 @@ export function PlannerGrid({
                         </button>
                       </div>
                     </td>
-                    {/* Priority */}
+                    {/* Priority — clickable dropdown */}
                     <td className="col-pri" style={{ padding: "0 6px" }}>
-                      <span className={getPriBadgeClass(projIdx)}>{getPriLabel(projIdx)}</span>
+                      <button
+                        type="button"
+                        className={PRI_CLASS[resolveLabel(proj, projIdx)]}
+                        style={{ border: "none", cursor: "pointer", background: "none", padding: "2px 7px" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPriorityTarget({ rect: e.currentTarget.getBoundingClientRect(), proj });
+                        }}
+                        title="Click to change priority label"
+                      >
+                        {resolveLabel(proj, projIdx)}
+                      </button>
                     </td>
                     {/* ETA */}
                     <td className="col-eta eta-cell">{proj.eta ? new Date(proj.eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</td>
@@ -530,7 +589,7 @@ export function PlannerGrid({
                   onDragStart={() => handleDragStart(id, "task")}
                   onDragOver={(e) => handleDragOver(e, id)}
                   onDrop={(e) => handleDrop(e, id)}
-                  onDragEnd={() => setDropTargetId(null)}
+                  onDragEnd={() => { setDropTargetId(null); setDraggingId(null); dragSrc.current = null; }}
                 >
                   <td className="col-cb cb-cell">
                     <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(id)} />
@@ -552,9 +611,12 @@ export function PlannerGrid({
                     </div>
                   </td>
                   <td className="col-pri" style={{ padding: "0 6px" }}>
-                    <span className={getPriBadgeClass(sortedProjects.findIndex(p => p.id === task.project_id))} style={{ opacity: 0.6 }}>
-                      {getPriLabel(sortedProjects.findIndex(p => p.id === task.project_id))}
-                    </span>
+                    {(() => {
+                      const parentProj = sortedProjects.find(p => p.id === task.project_id);
+                      const parentIdx  = parentProj ? sortedProjects.indexOf(parentProj) : 0;
+                      const label      = parentProj ? resolveLabel(parentProj, parentIdx) : "P3";
+                      return <span className={PRI_CLASS[label]} style={{ opacity: 0.55 }}>{label}</span>;
+                    })()}
                   </td>
                   <td className="col-eta eta-cell">{task.eta ? new Date(task.eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</td>
                   <td className="col-tot total-cell">{taskTotalEffort > 0 ? taskTotalEffort : "—"}</td>
@@ -578,6 +640,25 @@ export function PlannerGrid({
           </tbody>
         </table>
       </div>
+
+      {/* Priority portal */}
+      {priorityTarget && (
+        <PriorityPortal
+          rect={priorityTarget.rect}
+          current={resolveLabel(priorityTarget.proj, sortedProjects.indexOf(priorityTarget.proj))}
+          onClose={() => setPriorityTarget(null)}
+          onSelect={(label) => {
+            onUpdateProject(priorityTarget.proj.id, { priority_label: label }, {
+              project_id: priorityTarget.proj.id,
+              change_type: "priority_change",
+              field_name: "priority_label",
+              old_value: resolveLabel(priorityTarget.proj, sortedProjects.indexOf(priorityTarget.proj)),
+              new_value: label,
+              notes: priorityTarget.proj.name,
+            });
+          }}
+        />
+      )}
 
       {/* Status portal */}
       {statusTarget && (

@@ -169,7 +169,7 @@ export function PlannerShell() {
 
   const handleUpdateProject = useCallback(async (
     id: string,
-    patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order">>,
+    patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label">>,
     historyEntry?: HistoryEntry,
   ) => {
     if (!userId) return;

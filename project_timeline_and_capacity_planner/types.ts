@@ -27,6 +27,7 @@ export interface Project {
   user_id: string;
   name: string;
   priority_order: number;
+  priority_label: "P1" | "P2" | "P3" | null; // user-set label, independent of order
   status: ProjectStatus;
   eta: string | null;
   notes: string | null;

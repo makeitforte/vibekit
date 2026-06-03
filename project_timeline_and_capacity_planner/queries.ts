@@ -73,7 +73,7 @@ export async function createProject(
 
 export async function updateProject(
   id: string,
-  patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order">>,
+  patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label">>,
 ): Promise<void> {
   const { error } = await sb().from("planner_projects").update(patch).eq("id", id);
   if (error) throw error;
