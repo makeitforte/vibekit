@@ -173,13 +173,23 @@ export function PlannerShell() {
     historyEntry?: HistoryEntry,
   ) => {
     if (!userId) return;
-    await updateProject(id, patch);
+    // Optimistic update first so UI responds immediately
     const updated = state.projects.map(p => p.id === id ? { ...p, ...patch } : p);
     dispatch({ type: "SET_PROJECTS", projects: updated });
-    if (historyEntry) await addHistory(userId, historyEntry);
-    // Refresh history
-    const history = await fetchHistory(userId);
-    dispatch({ type: "SET_HISTORY", history });
+    // Persist to DB (errors are silent for now — could add toast)
+    try {
+      await updateProject(id, patch);
+    } catch (e) {
+      // Revert on failure
+      dispatch({ type: "SET_PROJECTS", projects: state.projects });
+      console.error("updateProject failed", e);
+      return;
+    }
+    if (historyEntry) {
+      await addHistory(userId, historyEntry);
+      const history = await fetchHistory(userId);
+      dispatch({ type: "SET_HISTORY", history });
+    }
   }, [userId, state.projects]);
 
   const handleAddTask = useCallback(async (projectId: string) => {
@@ -199,9 +209,16 @@ export function PlannerShell() {
     historyEntry?: HistoryEntry,
   ) => {
     if (!userId) return;
-    await updateTask(id, patch);
+    // Optimistic update
     const updated = state.tasks.map(t => t.id === id ? { ...t, ...patch } : t);
     dispatch({ type: "SET_TASKS", tasks: updated });
+    try {
+      await updateTask(id, patch);
+    } catch (e) {
+      dispatch({ type: "SET_TASKS", tasks: state.tasks });
+      console.error("updateTask failed", e);
+      return;
+    }
     if (historyEntry) {
       await addHistory(userId, historyEntry);
       const history = await fetchHistory(userId);

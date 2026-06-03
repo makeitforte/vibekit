@@ -40,18 +40,33 @@ interface Props {
 
 const STATUS_CSS: Record<TaskStatus | ProjectStatus, string> = {
   in_progress: "st-ip", todo: "st-td", done: "st-dn",
-  released: "st-rl", cancelled: "st-cx", active: "st-ip",
+  released: "st-rl", cancelled: "st-cx",
+  active: "st-ip",    // project "active" → blue "In Progress" look
 };
 const STATUS_LABEL: Record<TaskStatus | ProjectStatus, string> = {
   in_progress: "In Progress", todo: "To Do", done: "Done",
-  released: "Released", cancelled: "Cancelled", active: "Active",
+  released: "Released", cancelled: "Cancelled",
+  active: "In Progress",  // show "In Progress" for active projects
 };
 const STATUS_DOT_COLOR: Record<TaskStatus | ProjectStatus, string> = {
   in_progress: "#3b82f6", todo: "var(--fg-4)", done: "var(--accent)",
-  released: "#8b5cf6", cancelled: "var(--fg-4)", active: "var(--accent)",
+  released: "#8b5cf6", cancelled: "var(--fg-4)", active: "#3b82f6",
 };
-const ALL_STATUSES: (TaskStatus | ProjectStatus)[] = [
-  "in_progress", "todo", "done", "released", "cancelled",
+
+// Project statuses — DB only accepts active/done/cancelled
+const PROJECT_STATUSES: { value: ProjectStatus; label: string; dot: string }[] = [
+  { value: "active",    label: "In Progress", dot: "#3b82f6" },
+  { value: "done",      label: "Done",        dot: "var(--accent)" },
+  { value: "cancelled", label: "Cancelled",   dot: "var(--fg-4)" },
+];
+
+// Task statuses — full set
+const TASK_STATUSES: { value: TaskStatus; label: string; dot: string }[] = [
+  { value: "todo",        label: "To Do",       dot: "var(--fg-4)" },
+  { value: "in_progress", label: "In Progress", dot: "#3b82f6" },
+  { value: "done",        label: "Done",        dot: "var(--accent)" },
+  { value: "released",    label: "Released",    dot: "#8b5cf6" },
+  { value: "cancelled",   label: "Cancelled",   dot: "var(--fg-4)" },
 ];
 
 // ── Role colour class (index-based) ──────────────────────────────────────────
@@ -61,28 +76,61 @@ const ROLE_EC_CLASS = ["ec-be", "ec-fw", "ec-fa", "ec-fi", "ec-qa"];
 
 interface StatusPortalProps {
   rect: DOMRect;
+  kind: "project" | "task";
   onSelect: (status: TaskStatus | ProjectStatus) => void;
   onClose: () => void;
 }
 
-function StatusPortal({ rect, onSelect, onClose }: StatusPortalProps) {
+function StatusPortal({ rect, kind, onSelect, onClose }: StatusPortalProps) {
   useEffect(() => {
-    const handler = () => onClose();
-    document.addEventListener("click", handler, { once: true });
-    return () => document.removeEventListener("click", handler);
+    const handler = (e: MouseEvent) => {
+      // Only close if the click is outside the portal
+      const el = document.getElementById("status-portal-inner");
+      if (el && el.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
-  const style: React.CSSProperties = {
-    top: rect.bottom + 4,
-    left: rect.left,
-  };
+  const options = kind === "project" ? PROJECT_STATUSES : TASK_STATUSES;
+
+  // Position: prefer below, flip up if near bottom of viewport
+  const top = rect.bottom + 4 + window.scrollY;
+  const left = rect.left + window.scrollX;
 
   return createPortal(
-    <div className="status-portal" style={style} onClick={(e) => e.stopPropagation()}>
-      {ALL_STATUSES.map((s) => (
-        <div key={s} className="status-portal-item" onClick={() => { onSelect(s); onClose(); }}>
-          <span className="st-dot" style={{ background: STATUS_DOT_COLOR[s], width: 6, height: 6, borderRadius: "50%", flexShrink: 0, display: "inline-block" }} />
-          {STATUS_LABEL[s]}
+    <div
+      id="status-portal-inner"
+      className="status-portal"
+      style={{ position: "absolute", top, left }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {/* Portal title */}
+      <div style={{
+        padding: "6px 10px 4px",
+        fontFamily: "var(--font-mono)",
+        fontSize: 10,
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        color: "var(--fg-4)",
+        borderBottom: "1px solid var(--border-subtle)",
+        marginBottom: 4,
+      }}>
+        Change Status
+      </div>
+      {options.map(({ value, label, dot }) => (
+        <div
+          key={value}
+          className="status-portal-item"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onSelect(value);
+            onClose();
+          }}
+        >
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0, display: "inline-block" }} />
+          {label}
         </div>
       ))}
     </div>,
@@ -97,7 +145,7 @@ function getPriBadgeClass(order: number) {
   return "pri-badge pri-3";
 }
 function getPriLabel(order: number) {
-  return `P${Math.min(order + 1, 99)}`;
+  return `P${Math.min(order + 1, 3)}`; // max P3
 }
 
 // ── EffortInput ───────────────────────────────────────────────────────────────
@@ -265,14 +313,18 @@ export function PlannerGrid({
   const sortedProjects = [...projects].sort((a, b) => a.priority_order - b.priority_order);
   const sortedTasks    = [...tasks].sort((a, b) => a.priority_order - b.priority_order);
 
-  // Build flat rows: [project, ...tasks, project, ...tasks, ...]
-  type Row = { kind: "project"; data: Project } | { kind: "task"; data: Task };
+  // Build flat rows: [project, ...tasks, add_task, project, ...]
+  type Row =
+    | { kind: "project";  data: Project }
+    | { kind: "task";     data: Task }
+    | { kind: "add_task"; projectId: string };
   const rows: Row[] = [];
   for (const proj of sortedProjects) {
     rows.push({ kind: "project", data: proj });
     for (const task of sortedTasks.filter(t => t.project_id === proj.id)) {
       rows.push({ kind: "task", data: task });
     }
+    rows.push({ kind: "add_task", projectId: proj.id });
   }
 
   const allTaskIds = sortedTasks.map(t => t.id);
@@ -351,6 +403,44 @@ export function PlannerGrid({
 
             {/* ── Data rows ── */}
             {rows.map((row, rowIdx) => {
+              // ── Add task row ──
+              if (row.kind === "add_task") {
+                const colSpan = 6 + weeks.length * roles.length;
+                return (
+                  <tr key={`add-${row.projectId}`}>
+                    <td className="col-cb" />
+                    <td className="col-drag" />
+                    <td
+                      className="col-feat"
+                      colSpan={colSpan - 2}
+                      style={{ padding: "4px 20px" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onAddTask(row.projectId)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: 11,
+                          color: "var(--fg-4)",
+                          padding: "2px 0",
+                          transition: "color 120ms",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "var(--accent-text)")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "var(--fg-4)")}
+                      >
+                        <Plus size={12} /> Add task
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }
+
               const isProject = row.kind === "project";
               const id = row.data.id;
               const isSelected = selectedRowIds.has(id);
@@ -493,10 +583,12 @@ export function PlannerGrid({
       {statusTarget && (
         <StatusPortal
           rect={statusTarget.rect}
+          kind={statusTarget.type}
           onClose={() => setStatusTarget(null)}
           onSelect={(status) => {
             if (statusTarget.type === "project") {
               const proj = projects.find(p => p.id === statusTarget.id);
+              // For projects: done/cancelled → also archive
               onUpdateProject(statusTarget.id, { status: status as ProjectStatus }, {
                 project_id: statusTarget.id,
                 change_type: "status_change",
@@ -505,6 +597,7 @@ export function PlannerGrid({
                 new_value: status,
                 notes: proj?.name,
               });
+              // Archive triggers separately only for done/cancelled
               if (status === "done" || status === "cancelled") {
                 onArchiveProject(statusTarget.id);
               }
