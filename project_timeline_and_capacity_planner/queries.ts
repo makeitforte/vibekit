@@ -185,6 +185,38 @@ export async function upsertEffort(
   if (error) throw error;
 }
 
+/** Batch upsert/delete many effort cells at once (used by cascade) */
+export async function upsertManyEfforts(
+  userId: string,
+  entries: { task_id: string; role_id: string; week_start: string; mandays: number }[],
+): Promise<void> {
+  if (entries.length === 0) return;
+
+  const toDelete = entries.filter(e => e.mandays === 0);
+  const toUpsert = entries.filter(e => e.mandays > 0);
+
+  // Delete zeros
+  for (const e of toDelete) {
+    await sb()
+      .from("planner_weekly_efforts")
+      .delete()
+      .eq("task_id", e.task_id)
+      .eq("role_id", e.role_id)
+      .eq("week_start", e.week_start);
+  }
+
+  // Upsert non-zeros
+  if (toUpsert.length > 0) {
+    const { error } = await sb()
+      .from("planner_weekly_efforts")
+      .upsert(
+        toUpsert.map(e => ({ ...e, user_id: userId })),
+        { onConflict: "task_id,role_id,week_start" },
+      );
+    if (error) throw error;
+  }
+}
+
 export function buildEffortMap(efforts: WeeklyEffort[]): EffortMap {
   const map: EffortMap = {};
   for (const e of efforts) {

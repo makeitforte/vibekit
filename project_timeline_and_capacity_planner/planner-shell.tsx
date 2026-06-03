@@ -12,11 +12,11 @@ import {
   fetchRoles, seedDefaultRoles,
   fetchProjects, createProject, updateProject, reorderProjects, archiveProject,
   fetchTasks, createTask, updateTask, reorderTasks,
-  fetchWeeklyEfforts, upsertEffort, buildEffortMap,
+  fetchWeeklyEfforts, upsertEffort, upsertManyEfforts, buildEffortMap,
   fetchResourceCapacity, upsertCapacity, buildCapacityMap,
   fetchHistory, addHistory, type HistoryEntry,
 } from "./queries";
-import { getWeekStarts, toWeekStart, formatWeekRange, deriveTaskEta } from "./utils";
+import { getWeekStarts, toWeekStart, formatWeekRange, runCascadeRecalculate } from "./utils";
 import { PlannerGrid } from "./planner-grid";
 import { exportToXlsx } from "./export-xlsx";
 import { PlannerTimeline } from "./planner-timeline";
@@ -335,6 +335,74 @@ export function PlannerShell() {
     }
   }, [userId, state.projects]);
 
+  const handleRunCascade = useCallback(async () => {
+    if (!userId) return;
+
+    const activeTasks = state.tasks.filter(t =>
+      activeProjects.some(p => p.id === t.project_id) && !t.is_archived
+    );
+    // Ordered by priority_order (top = highest priority = protected)
+    const orderedTaskIds = [...activeTasks]
+      .sort((a, b) => a.priority_order - b.priority_order)
+      .map(t => t.id);
+
+    const { newEffortMap, changes } = runCascadeRecalculate(
+      orderedTaskIds,
+      weeks,
+      state.roles.map(r => r.id),
+      state.effortMap,
+      state.capacityMap,
+    );
+
+    if (changes.length === 0) return;
+
+    // Optimistic update
+    dispatch({ type: "SET_EFFORTS", efforts: [] }); // will be overwritten below
+    // Build flat list of all cells that changed for DB upsert
+    const cellsToUpdate: { task_id: string; role_id: string; week_start: string; mandays: number }[] = [];
+    for (const c of changes) {
+      // Push the reduced/zeroed source cell
+      cellsToUpdate.push({ task_id: c.taskId, role_id: c.roleId, week_start: c.fromWeek, mandays: newEffortMap[c.taskId]?.[c.roleId]?.[c.fromWeek] ?? 0 });
+      // Push the increased destination cell
+      cellsToUpdate.push({ task_id: c.taskId, role_id: c.roleId, week_start: c.toWeek, mandays: newEffortMap[c.taskId]?.[c.roleId]?.[c.toWeek] ?? 0 });
+    }
+
+    // Deduplicate by task+role+week
+    const seen = new Set<string>();
+    const deduped = cellsToUpdate.filter(c => {
+      const key = `${c.task_id}|${c.role_id}|${c.week_start}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    try {
+      await upsertManyEfforts(userId, deduped);
+    } catch (e) {
+      console.error("cascade upsert failed", e);
+    }
+
+    // Reload fresh from DB
+    const efforts = await fetchWeeklyEfforts(userId);
+    dispatch({ type: "SET_EFFORTS", efforts });
+
+    // Log cascade history
+    const roleMap = Object.fromEntries(state.roles.map(r => [r.id, r.name]));
+    const taskMap = Object.fromEntries(state.tasks.map(t => [t.id, t.name]));
+    for (const c of changes) {
+      await addHistory(userId, {
+        task_id: c.taskId,
+        change_type: "cascade_push",
+        field_name: `${roleMap[c.roleId] ?? c.roleId}`,
+        old_value: `${c.fromWeek} · ${c.amount} md`,
+        new_value: c.toWeek,
+        notes: taskMap[c.taskId],
+      });
+    }
+    const history = await fetchHistory(userId);
+    dispatch({ type: "SET_HISTORY", history });
+  }, [userId, state.tasks, state.roles, state.effortMap, state.capacityMap, activeProjects, weeks, state.tasks]);
+
   const handleBulkArchive = useCallback(async () => {
     if (!userId) return;
     for (const id of state.selectedRowIds) {
@@ -438,6 +506,7 @@ export function PlannerShell() {
             onUpsertEffort={handleUpsertEffort}
             onUpsertCapacity={handleUpsertCapacity}
             onArchiveProject={handleArchiveProject}
+            onRunCascade={handleRunCascade}
           />
         ) : state.view === "timeline" ? (
           <PlannerTimeline

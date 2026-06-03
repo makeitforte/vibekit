@@ -90,79 +90,100 @@ export function computeWeekRoleSummary(
 
 // ── Priority / cascade ────────────────────────────────────────────────────────
 
+export interface CascadeChange {
+  taskId: string;
+  roleId: string;
+  fromWeek: string;
+  toWeek: string;
+  amount: number;
+}
+
 /**
- * Given the ordered list of task IDs (flat priority list), determine which
- * weeks are "at capacity" for each role, then push lower-priority tasks to
- * the next available week. Returns updated effort map (immutable-style).
+ * Fill-from-top cascade algorithm:
  *
- * Algorithm:
- * 1. Iterate weeks in order.
- * 2. For each week, for each role, sum required effort from tasks in priority order.
- * 3. If cumulative + next task's effort would exceed (capacity - takenOther - holiday - bufferThreshold),
- *    that task and all subsequent tasks for that role are shifted to the next week.
+ * For each week × role where buffer < 0:
+ *   1. Walk tasks top-to-bottom (priority order).
+ *   2. Accumulate effort until we exceed available capacity (= capacity - taken - holiday).
+ *      The task that causes the overflow is the "overflow point".
+ *   3. At the overflow point: keep only what fits (buffer = 0), push the rest to next week.
+ *   4. Every task BELOW the overflow point in that week: push ALL effort to next week.
+ *
+ * "Next week" means the immediately following week in the `weeks` array.
+ * Tasks pushed to next week may cascade further (run this function again if needed).
+ *
+ * Returns the updated effort map and a list of changes for audit logging.
  */
 export function runCascadeRecalculate(
-  orderedTaskIds: string[],
-  weeks: string[],
-  roles: string[], // role IDs
+  orderedTaskIds: string[],   // sorted top → bottom (index 0 = highest priority)
+  weeks: string[],             // sorted chronologically (ISO YYYY-MM-DD Mondays)
+  roleIds: string[],
   effortMap: EffortMap,
   capacityMap: CapacityMap,
-): EffortMap {
-  // Deep clone
+): { newEffortMap: EffortMap; changes: CascadeChange[] } {
   const result: EffortMap = JSON.parse(JSON.stringify(effortMap));
+  const changes: CascadeChange[] = [];
 
-  for (const roleId of roles) {
-    // Track how much capacity is already consumed per week
-    const weekConsumed: Record<string, number> = {};
+  for (const roleId of roleIds) {
+    for (let wi = 0; wi < weeks.length; wi++) {
+      const week = weeks[wi];
+      const cap = capacityMap[roleId]?.[week];
+      // Available = capacity minus deductions; target is buffer >= 0
+      const available = (cap?.capacity ?? 0) - (cap?.taken_other ?? 0) - (cap?.holiday ?? 0);
+      if (available <= 0) {
+        // No capacity at all — push every task with effort here to next week
+        if (wi + 1 >= weeks.length) continue;
+        const nextWeek = weeks[wi + 1];
+        for (const taskId of orderedTaskIds) {
+          const md = result[taskId]?.[roleId]?.[week] ?? 0;
+          if (md <= 0) continue;
+          result[taskId][roleId][week] = 0;
+          result[taskId][roleId][nextWeek] = (result[taskId][roleId][nextWeek] ?? 0) + md;
+          changes.push({ taskId, roleId, fromWeek: week, toWeek: nextWeek, amount: md });
+        }
+        continue;
+      }
 
-    for (const taskId of orderedTaskIds) {
-      // Find the earliest week this task has effort for this role
-      const taskEffort = result[taskId]?.[roleId];
-      if (!taskEffort) continue;
+      let cumulative = 0;
+      let overflowFound = false;
 
-      const sortedWeeks = Object.keys(taskEffort)
-        .filter(w => taskEffort[w] > 0)
-        .sort();
+      for (const taskId of orderedTaskIds) {
+        if (!result[taskId]?.[roleId]) continue;
+        const md = result[taskId][roleId][week] ?? 0;
+        if (md <= 0) continue;
 
-      for (const origWeek of sortedWeeks) {
-        const md = taskEffort[origWeek];
-        if (!md) continue;
-
-        // Find first week (>= origWeek) with enough room
-        let targetWeek = origWeek;
-        let weekIdx = weeks.indexOf(origWeek);
-        if (weekIdx < 0) weekIdx = 0;
-
-        while (weekIdx < weeks.length) {
-          const w = weeks[weekIdx];
-          const cap  = capacityMap[roleId]?.[w];
-          const avail = (cap?.capacity ?? 0)
-            - (cap?.taken_other ?? 0)
-            - (cap?.holiday ?? 0)
-            - (cap?.buffer_threshold ?? 0);
-          const used = weekConsumed[w] ?? 0;
-
-          if (used + md <= avail) {
-            targetWeek = w;
-            break;
+        if (overflowFound) {
+          // Below overflow point → push everything to next week
+          if (wi + 1 < weeks.length) {
+            const nextWeek = weeks[wi + 1];
+            if (!result[taskId][roleId]) result[taskId][roleId] = {};
+            result[taskId][roleId][week] = 0;
+            result[taskId][roleId][nextWeek] = (result[taskId][roleId][nextWeek] ?? 0) + md;
+            changes.push({ taskId, roleId, fromWeek: week, toWeek: nextWeek, amount: md });
           }
-          weekIdx++;
-        }
+        } else {
+          cumulative += md;
+          if (cumulative > available) {
+            // This is the overflow point
+            overflowFound = true;
+            const overflow = cumulative - available;
+            const keep     = md - overflow;
 
-        if (targetWeek !== origWeek) {
-          // Move effort to the target week
-          if (!result[taskId]) result[taskId] = {};
-          if (!result[taskId][roleId]) result[taskId][roleId] = {};
-          result[taskId][roleId][origWeek]  = 0;
-          result[taskId][roleId][targetWeek] = (result[taskId][roleId][targetWeek] ?? 0) + md;
-        }
+            if (!result[taskId][roleId]) result[taskId][roleId] = {};
+            result[taskId][roleId][week] = Math.max(0, keep);
 
-        weekConsumed[targetWeek] = (weekConsumed[targetWeek] ?? 0) + md;
+            if (overflow > 0 && wi + 1 < weeks.length) {
+              const nextWeek = weeks[wi + 1];
+              result[taskId][roleId][nextWeek] = (result[taskId][roleId][nextWeek] ?? 0) + overflow;
+              changes.push({ taskId, roleId, fromWeek: week, toWeek: nextWeek, amount: overflow });
+            }
+          }
+          // else: fits within available capacity, cumulative stays
+        }
       }
     }
   }
 
-  return result;
+  return { newEffortMap: result, changes };
 }
 
 // ── Total effort for a task ───────────────────────────────────────────────────

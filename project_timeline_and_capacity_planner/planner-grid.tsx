@@ -34,6 +34,7 @@ interface Props {
   onUpsertEffort: (taskId: string, roleId: string, weekStart: string, mandays: number, oldMandays: number) => void;
   onUpsertCapacity: (roleId: string, weekStart: string, field: "capacity" | "taken_other" | "holiday" | "buffer_threshold", value: number) => void;
   onArchiveProject: (id: string) => void;
+  onRunCascade: () => void;
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -255,7 +256,7 @@ function CapInput({ value, className, isWeekStart, onChange }: CapInputProps) {
 // ── Main Grid ────────────────────────────────────────────────────────────────
 
 export function PlannerGrid({
-  roles, projects, tasks, effortMap, capacityMap, dateRange, weeks,
+  roles, projects, tasks, effortMap, capacityMap, dateRange, weeks, onRunCascade,
   selectedRowIds, onDateRangeChange, onToggleSelect, onReorder,
   onUpdateProject, onAddTask, onUpdateTask, onUpsertEffort, onUpsertCapacity,
   onArchiveProject,
@@ -364,6 +365,13 @@ export function PlannerGrid({
 
   const allTaskIds = sortedTasks.map(t => t.id);
 
+  // ── Detect negative buffers (cascade needed) ──────────────────────────────
+  const negativeBufferCount = weeks.reduce((count, w) =>
+    count + roles.filter(role => {
+      const s = computeWeekRoleSummary(role.id, w, capacityMap, effortMap, allTaskIds);
+      return s.buffer < 0;
+    }).length, 0);
+
   // ── Empty state ────────────────────────────────────────────────────────────
   if (projects.length === 0) {
     return (
@@ -384,6 +392,48 @@ export function PlannerGrid({
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Toolbar */}
       <GridToolbar dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles} />
+
+      {/* Cascade banner */}
+      {negativeBufferCount > 0 && (
+        <div style={{
+          padding: "7px 28px",
+          background: "rgba(226,67,75,.06)",
+          borderBottom: "1px solid rgba(226,67,75,.2)",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flexShrink: 0,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger-text)" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--danger-text)", fontWeight: 500 }}>
+            {negativeBufferCount} role{negativeBufferCount > 1 ? "s" : ""} over capacity
+          </span>
+          <button
+            type="button"
+            onClick={onRunCascade}
+            style={{
+              padding: "4px 12px",
+              borderRadius: "var(--radius-md)",
+              background: "var(--danger-text)",
+              color: "#fff",
+              border: "none",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+            Run Cascade
+          </button>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-4)" }}>
+            Pushes overflow effort from lower-priority tasks to next week
+          </span>
+        </div>
+      )}
 
       {/* Scrollable grid */}
       <div className="grid-view">
