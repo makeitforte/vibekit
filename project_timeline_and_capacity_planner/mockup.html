@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VibeKit — Project Planner (Mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#e5e5e5;font-family:'Hanken Grotesk',ui-sans-serif,sans-serif}
+:root{
+  --bg:#f7f7f8;--bg-s:#ededf0;--s1:#fff;--s3:#f1f1f4;--s4:#e6e6eb;
+  --b-sub:rgba(17,17,20,.09);--b-str:rgba(17,17,20,.15);
+  --fg1:#17171a;--fg2:#51515a;--fg3:#73737c;--fg4:#a6a6ae;
+  --ac:#16a268;--ac-h:#128f5b;--ac-fg:#fff;--ac-m:rgba(22,162,104,.10);
+  --ac-b:rgba(22,162,104,.35);--ac-t:#0e7a4e;
+  --danger:#e2434b;--dan-t:#c22a32;
+  --warn-t:#876200;--warn-m:rgba(183,134,11,.10);--warn-b:rgba(183,134,11,.25);
+  --sh-sm:0 1px 2px rgba(17,17,20,.06);--sh-md:0 4px 16px -4px rgba(17,17,20,.12);--sh-lg:0 20px 50px -16px rgba(17,17,20,.20);
+  --r-xs:4px;--r-sm:6px;--r-md:10px;--r-lg:14px;--r-full:999px;
+  --fd:'Space Grotesk',sans-serif;--fs:'Hanken Grotesk',sans-serif;--fm:'JetBrains Mono',monospace;
+  --be-bg:rgba(22,162,104,.10);--be-t:#0e7a4e;--be-b:rgba(22,162,104,.25);
+  --few-bg:rgba(183,134,11,.10);--few-t:#876200;--few-b:rgba(183,134,11,.25);
+  --fea-bg:rgba(59,130,246,.10);--fea-t:#1d4ed8;--fea-b:rgba(59,130,246,.25);
+  --fei-bg:rgba(139,92,246,.10);--fei-t:#6d28d9;--fei-b:rgba(139,92,246,.25);
+  --qa-bg:rgba(6,182,212,.10);--qa-t:#0e7490;--qa-b:rgba(6,182,212,.25);
+}
+/* meta bar */
+.meta-bar{position:fixed;top:0;left:0;right:0;z-index:900;background:#1a1a1f;color:#a0a0a8;display:flex;align-items:center;gap:6px;padding:8px 16px;font-family:var(--fm);font-size:11px;border-bottom:1px solid rgba(255,255,255,.08)}
+.meta-bar span{margin-right:6px;color:#57575f}
+.mbtn{padding:4px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#a0a0a8;font-family:var(--fm);font-size:11px;cursor:pointer;transition:all 120ms}
+.mbtn:hover{background:rgba(255,255,255,.06);color:#e0e0e8}
+.mbtn.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.meta-r{margin-left:auto;color:#57575f;letter-spacing:.06em;text-transform:uppercase;font-size:10px}
+/* shell */
+.wrap{padding-top:37px;height:100vh}
+.app{display:grid;grid-template-columns:260px 1fr;height:calc(100vh - 37px);background:var(--bg)}
+/* sidebar */
+.sb{background:var(--s1);border-right:1px solid var(--b-sub);display:flex;flex-direction:column;height:100%;overflow:hidden}
+.sb-top{padding:18px 16px 0;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#16a268,#22c97f);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:var(--sh-sm)}
+.brand{font-family:var(--fd);font-size:17px;font-weight:600;letter-spacing:-.02em;color:var(--fg1)}
+.bbadge{margin-left:auto;font-family:var(--fm);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--ac-t);background:var(--ac-m);padding:3px 7px;border-radius:var(--r-full)}
+.sb-search{margin:14px 12px 10px;display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--s3);border:1px solid var(--b-sub);border-radius:var(--r-md);color:var(--fg3);font-size:13px;cursor:pointer}
+.sb-search span{flex:1;color:var(--fg4)}
+.kbd{font-family:var(--fm);font-size:10px;color:var(--fg4);background:var(--s1);border:1px solid var(--b-sub);border-radius:5px;padding:1px 6px}
+.sb-scroll{flex:1;overflow-y:auto;padding-bottom:8px;min-height:0}
+.sb-scroll::-webkit-scrollbar{width:4px}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--s4);border-radius:4px}
+.nav-lbl{padding:12px 18px 6px;font-family:var(--fm);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--fg4);display:flex;align-items:center;gap:6px}
+.nav-lbl .ct{margin-left:auto}
+.nav{padding:0 8px;display:flex;flex-direction:column;gap:1px}
+.ni{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-sm);color:var(--fg2);font-size:13.5px;font-weight:500;cursor:pointer;position:relative;width:100%;background:none;border:none;font-family:var(--fs);transition:background 120ms,color 120ms;text-align:left}
+.ni:hover{background:var(--s3);color:var(--fg1)}
+.ni.on{background:var(--ac-m);color:var(--ac-t)}
+.ni.on::before{content:'';position:absolute;left:-8px;top:7px;bottom:7px;width:2px;border-radius:2px;background:var(--ac)}
+.ni.dim{color:var(--fg4);cursor:default}
+.ni.dim:hover{background:transparent}
+.ntag{margin-left:auto;font-family:var(--fm);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg4);border:1px solid var(--b-sub);border-radius:var(--r-full);padding:2px 6px}
+.ntag.new{color:var(--ac-t);border-color:var(--ac-b)}
+.sb-foot{padding:12px;border-top:1px solid var(--b-sub);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#16a268,#22c97f);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.fn{font-size:13px;font-weight:600;color:var(--fg1)}
+.fp{font-family:var(--fm);font-size:10px;color:var(--fg4)}
+.set-btn{margin-left:auto;width:30px;height:30px;border-radius:var(--r-sm);border:none;background:transparent;color:var(--fg3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 120ms}
+.set-btn:hover{background:var(--s3)}
+/* main */
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.topbar{height:52px;flex-shrink:0;border-bottom:1px solid var(--b-sub);display:flex;align-items:center;padding:0 28px;gap:12px;background:var(--s1)}
+.bc{display:flex;align-items:center;gap:8px;font-size:14px}
+.bc-l{color:var(--fg3);cursor:pointer;background:none;border:none;font-family:var(--fs);font-size:14px;padding:0}
+.bc-s{color:var(--fg4);display:flex;align-items:center}
+.bc-c{color:var(--fg1);font-weight:600}
+.tba{margin-left:auto;display:flex;align-items:center;gap:6px}
+.ib{width:32px;height:32px;border-radius:var(--r-sm);border:none;background:transparent;color:var(--fg3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 120ms,color 120ms}
+.ib:hover{background:var(--s3);color:var(--fg1)}
+/* buttons */
+.btn{font-family:var(--fs);font-size:13px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;padding:7px 13px;border-radius:var(--r-md);cursor:pointer;display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;transition:background 120ms,border-color 120ms}
+.btn-p{background:var(--ac);color:var(--ac-fg);box-shadow:0 1px 3px rgba(22,162,104,.3)}
+.btn-p:hover{background:var(--ac-h)}
+.btn-g{background:var(--s1);color:var(--fg1);border-color:var(--b-str)}
+.btn-g:hover{background:var(--s3)}
+/* seg */
+.seg{display:inline-flex;background:var(--s3);border:1px solid var(--b-sub);border-radius:var(--r-md);padding:3px;gap:2px}
+.sb-btn{font-family:var(--fm);font-size:11px;font-weight:500;color:var(--fg3);background:none;border:none;padding:4px 11px;border-radius:var(--r-sm);cursor:pointer;transition:background 120ms,color 120ms;white-space:nowrap}
+.sb-btn.on{background:var(--s1);color:var(--fg1);box-shadow:var(--sh-sm)}
+/* planner header */
+.ph{padding:14px 28px 12px;display:flex;align-items:center;gap:14px;background:var(--s1);border-bottom:1px solid var(--b-sub);flex-shrink:0}
+.pi{width:36px;height:36px;border-radius:var(--r-md);background:var(--ac-m);color:var(--ac);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ptitle{font-family:var(--fd);font-size:17px;font-weight:600;letter-spacing:-.01em;color:var(--fg1)}
+.psub{font-size:12px;color:var(--fg3);margin-top:1px}
+.pha{margin-left:auto;display:flex;align-items:center;gap:8px}
+/* toolbar */
+.toolbar{padding:9px 28px;display:flex;align-items:center;gap:8px;background:var(--bg);border-bottom:1px solid var(--b-sub);flex-shrink:0}
+.tsep{width:1px;height:18px;background:var(--b-str);margin:0 2px;flex-shrink:0}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:var(--r-full);font-family:var(--fm);font-size:10.5px;font-weight:500;border:1px solid var(--b-sub);background:var(--s1);color:var(--fg2);cursor:pointer;transition:border-color 120ms,color 120ms}
+.chip:hover{border-color:var(--b-str);color:var(--fg1)}
+.chip.on{border-color:var(--ac-b);background:var(--ac-m);color:var(--ac-t)}
+/* planner body */
+.pb{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+
+/* ━━━━ GRID ━━━━ */
+.gv{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.gv.off{display:none}
+.gw{flex:1;min-height:0;overflow:auto}
+.gw::-webkit-scrollbar{width:8px;height:8px}
+.gw::-webkit-scrollbar-thumb{background:var(--s4);border-radius:4px}
+.gw::-webkit-scrollbar-corner{background:var(--bg)}
+table.grid{border-collapse:separate;border-spacing:0;font-size:12.5px;width:max-content;min-width:100%}
+
+/* Sticky left columns — stat removed, feat wider to absorb inline status
+   cb=36, drag=28, feat=240, pri=52, eta=76, tot=64 → 496px total */
+.c-cb  {width:36px; min-width:36px; position:sticky;left:0px;  z-index:12}
+.c-drag{width:28px; min-width:28px; position:sticky;left:36px; z-index:12}
+.c-feat{width:240px;min-width:240px;position:sticky;left:64px; z-index:12}
+.c-pri {width:52px; min-width:52px; position:sticky;left:304px;z-index:12}
+.c-eta {width:76px; min-width:76px; position:sticky;left:356px;z-index:12}
+.c-tot {width:64px; min-width:64px; position:sticky;left:432px;z-index:12}
+.c-stat{display:none}
+/* shadow after last sticky col */
+.c-tot::after{content:'';position:absolute;top:0;right:-1px;bottom:0;width:1px;background:var(--b-str);z-index:1}
+
+/* Column headers — sticky top */
+.th-w{position:sticky;top:0;z-index:20}
+.th-r{position:sticky;top:33px;z-index:20}
+.th-w th,.th-r th{background:var(--s1);border-bottom:1px solid var(--b-sub);padding:0;white-space:nowrap;user-select:none}
+.th-sp{background:var(--s1)!important;border-bottom:1px solid var(--b-sub)}
+/* Thead sticky cols need explicit bg to scroll over tbody */
+.th-w .c-cb,.th-w .c-drag,.th-w .c-feat,.th-w .c-pri,.th-w .c-stat,.th-w .c-eta,.th-w .c-tot,
+.th-r .c-cb,.th-r .c-drag,.th-r .c-feat,.th-r .c-pri,.th-r .c-stat,.th-r .c-eta,.th-r .c-tot{background:var(--s1)!important}
+.th-wg{text-align:center;border-left:1px solid var(--b-sub);padding:5px 8px}
+.th-wg.first{border-left:2px solid var(--b-str)}
+.wr{font-family:var(--fm);font-size:10.5px;font-weight:600;color:var(--fg2);letter-spacing:.01em}
+.th-hdr{padding:6px 8px;font-family:var(--fm);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--fg3);font-weight:500;text-align:left;white-space:nowrap}
+.th-hdr.c{text-align:center}
+.r-be {text-align:center;background:var(--be-bg); color:var(--be-t); padding:5px 4px;font-family:var(--fm);font-size:10px;letter-spacing:.03em}
+.r-few{text-align:center;background:var(--few-bg);color:var(--few-t);padding:5px 4px;font-family:var(--fm);font-size:10px;letter-spacing:.03em}
+.r-fea{text-align:center;background:var(--fea-bg);color:var(--fea-t);padding:5px 4px;font-family:var(--fm);font-size:10px;letter-spacing:.03em}
+.r-fei{text-align:center;background:var(--fei-bg);color:var(--fei-t);padding:5px 4px;font-family:var(--fm);font-size:10px;letter-spacing:.03em}
+.r-qa {text-align:center;background:var(--qa-bg); color:var(--qa-t); padding:5px 4px;font-family:var(--fm);font-size:10px;letter-spacing:.03em}
+.r-be.first,.r-few.first,.r-fea.first,.r-fei.first,.r-qa.first{border-left:2px solid var(--b-str)}
+
+/* Summary rows — in tbody, NOT sticky (avoids z-index battles) */
+.rsum td{background:var(--s1)!important;border-bottom:1px solid var(--b-sub);padding:5px 8px}
+.rsum .c-cb,.rsum .c-drag,.rsum .c-feat,.rsum .c-pri,.rsum .c-stat,.rsum .c-eta,.rsum .c-tot{background:var(--s1)!important}
+.rsum-last td{border-bottom:2px solid var(--b-str)!important}
+.rsum-last .c-cb,.rsum-last .c-drag,.rsum-last .c-feat,.rsum-last .c-pri,.rsum-last .c-stat,.rsum-last .c-eta,.rsum-last .c-tot{border-bottom:2px solid var(--b-str)!important}
+.sum-lbl{font-family:var(--fm);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--fg3);font-weight:500}
+.sum-v{text-align:center;font-family:var(--fm);font-size:12px;font-weight:600;color:var(--fg2)}
+.buf-p{color:var(--ac-t)}
+.buf-n{color:var(--dan-t);font-weight:700}
+.buf-n-bg{background:rgba(226,67,75,.06)!important}
+.cap-in{font-family:var(--fm);font-size:12px;font-weight:600;color:var(--fg2);text-align:center;width:100%;border:none;outline:none;background:transparent;cursor:text;padding:0}
+.cap-in:focus{background:rgba(22,162,104,.08);border-radius:3px}
+
+/* Data cells */
+td{padding:0;height:34px;vertical-align:middle}
+.ec{text-align:center;font-family:var(--fm);font-size:12px;font-weight:600;padding:0;width:52px;min-width:52px;height:34px}
+.ec input{width:100%;height:100%;border:none;outline:none;background:transparent;text-align:center;font-family:var(--fm);font-size:12px;font-weight:600;color:var(--fg1);cursor:text;padding:0}
+.ec input:focus{background:rgba(22,162,104,.08)}
+.ec input::placeholder{color:var(--fg4);font-weight:400}
+.be-c{background:var(--be-bg)}.be-c input{color:var(--be-t)}
+.fw-c{background:var(--few-bg)}.fw-c input{color:var(--few-t)}
+.fa-c{background:var(--fea-bg)}.fa-c input{color:var(--fea-t)}
+.fi-c{background:var(--fei-bg)}.fi-c input{color:var(--fei-t)}
+.qa-c{background:var(--qa-bg)}.qa-c input{color:var(--qa-t)}
+.wk-s{border-left:2px solid var(--b-str)!important}
+
+/* Task rows — flat list */
+/* Project = section header: subtle gray bg, no left bar, top gap */
+.rp td{background:var(--s3);border-bottom:1px solid var(--b-sub);border-top:4px solid var(--bg-s)}
+.rp .c-cb,.rp .c-drag,.rp .c-feat,.rp .c-pri,.rp .c-stat,.rp .c-eta,.rp .c-tot{background:var(--s3)!important;border-top:4px solid var(--bg-s)}
+.rt td{background:var(--s1);border-bottom:1px solid var(--b-sub)}
+.rt .c-cb,.rt .c-drag,.rt .c-feat,.rt .c-pri,.rt .c-stat,.rt .c-eta,.rt .c-tot{background:var(--s1)!important}
+tbody tr.rp:hover td{background:var(--s4)!important}
+tbody tr.rp:hover .c-cb,tbody tr.rp:hover .c-drag,tbody tr.rp:hover .c-feat,
+tbody tr.rp:hover .c-pri,tbody tr.rp:hover .c-stat,tbody tr.rp:hover .c-eta,tbody tr.rp:hover .c-tot{background:var(--s4)!important}
+tbody tr.rt:hover td{background:var(--s3)!important}
+tbody tr.rt:hover .c-cb,tbody tr.rt:hover .c-drag,tbody tr.rt:hover .c-feat,
+tbody tr.rt:hover .c-pri,tbody tr.rt:hover .c-stat,tbody tr.rt:hover .c-eta,tbody tr.rt:hover .c-tot{background:var(--s3)!important}
+tbody tr.rp:hover .be-c,tbody tr.rt:hover .be-c,
+tbody tr.rp:hover .fw-c,tbody tr.rt:hover .fw-c,
+tbody tr.rp:hover .fa-c,tbody tr.rt:hover .fa-c,
+tbody tr.rp:hover .fi-c,tbody tr.rt:hover .fi-c,
+tbody tr.rp:hover .qa-c,tbody tr.rt:hover .qa-c{background:var(--s3)!important}
+/* Selected row */
+tr.row-sel td{background:var(--ac-m)!important}
+tr.row-sel .c-cb,tr.row-sel .c-drag,tr.row-sel .c-feat,
+tr.row-sel .c-pri,tr.row-sel .c-stat,tr.row-sel .c-eta,tr.row-sel .c-tot{background:var(--ac-m)!important}
+
+/* Feature cell — inline status */
+.fc{padding:0 12px;display:flex;align-items:center;gap:8px;position:relative}
+.proj-icon{width:15px;height:15px;border-radius:3px;background:var(--ac-m);border:1px solid var(--ac-b);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.fname{color:var(--fg1);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.rp .fname{font-weight:600;color:var(--fg1)}
+.rt .fname{color:var(--fg2);padding-left:8px}
+/* Inline status — anchored to .fc */
+.istat{margin-left:auto;flex-shrink:0}
+.istat .sdrop{left:auto;right:0}
+/* Status — clickable inline picker */
+.sc{padding:0 6px;position:relative}
+
+/* Bulk action bar */
+.bulk-bar{position:fixed;bottom:40px;left:50%;transform:translateX(-50%) translateY(16px);z-index:600;background:var(--fg1);color:#fff;border-radius:var(--r-lg);padding:10px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--sh-lg);opacity:0;pointer-events:none;transition:opacity 180ms,transform 180ms;font-family:var(--fm);font-size:12px;white-space:nowrap}
+.bulk-bar.show{opacity:1;pointer-events:all;transform:translateX(-50%) translateY(0)}
+.bulk-count{color:rgba(255,255,255,.5);margin-right:4px}
+.bulk-sep{width:1px;height:16px;background:rgba(255,255,255,.15)}
+.bulk-btn{background:none;border:none;color:rgba(255,255,255,.75);font-family:var(--fm);font-size:12px;cursor:pointer;padding:3px 6px;border-radius:var(--r-sm);transition:background 120ms,color 120ms}
+.bulk-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+.bulk-btn.danger:hover{background:rgba(226,67,75,.3);color:#ff8a8a}
+.bulk-btn.cancel{color:rgba(255,255,255,.4)}
+.bulk-btn.cancel:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7)}
+.push-tag{font-family:var(--fm);font-size:9px;color:var(--warn-t);background:var(--warn-m);border:1px solid var(--warn-b);padding:1px 6px;border-radius:var(--r-full);white-space:nowrap;flex-shrink:0}
+
+/* Badges */
+.pc{padding:0 6px}
+.badge{display:inline-flex;align-items:center;justify-content:center;font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:var(--r-full);white-space:nowrap}
+.p1{background:rgba(226,67,75,.12);color:#c22a32}
+.p2{background:rgba(183,134,11,.12);color:#876200}
+.p3{background:var(--ac-m);color:var(--ac-t)}
+
+/* Status — clickable inline picker */
+.sc{padding:0 6px;position:relative}
+.st{display:inline-flex;align-items:center;gap:5px;font-family:var(--fm);font-size:10px;font-weight:500;letter-spacing:.03em;padding:2px 8px;border-radius:var(--r-full);white-space:nowrap;cursor:pointer;border:1px solid transparent;transition:border-color 120ms}
+.st:hover{border-color:var(--b-str)}
+.sdot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.s-ip{background:rgba(59,130,246,.10);color:#1d4ed8}.s-ip .sdot{background:#3b82f6}
+.s-td{background:var(--s3);color:var(--fg3)}.s-td .sdot{background:var(--fg4)}
+.s-dn{background:var(--ac-m);color:var(--ac-t)}.s-dn .sdot{background:var(--ac)}
+.s-rl{background:rgba(139,92,246,.10);color:#6d28d9}.s-rl .sdot{background:#8b5cf6}
+.s-cx{background:var(--s4);color:var(--fg4)}.s-cx .sdot{background:var(--fg4)}
+/* Status dropdown — body-level portal (avoids overflow:auto clipping) */
+#status-portal{position:fixed;z-index:800;background:var(--s1);border:1px solid var(--b-str);border-radius:var(--r-md);box-shadow:var(--sh-lg);padding:4px;min-width:160px;display:none}
+#status-portal.open{display:block}
+.sdrop-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r-sm);cursor:pointer;font-family:var(--fm);font-size:11.5px;font-weight:500;color:var(--fg2);transition:background 80ms}
+.sdrop-item:hover{background:var(--s3);color:var(--fg1)}
+.sdrop-item .sdot{width:6px;height:6px}
+/* Total Required row */
+.rsum-req td{background:rgba(22,162,104,.04)!important}
+.rsum-req .c-cb,.rsum-req .c-drag,.rsum-req .c-feat,.rsum-req .c-pri,.rsum-req .c-eta,.rsum-req .c-tot{background:rgba(22,162,104,.04)!important}
+.sum-v-req{text-align:center;font-family:var(--fm);font-size:12px;font-weight:600;color:var(--fg1)}
+/* Min Buffer Threshold row (rsum-last) */
+tr.rsum-last td{background:rgba(226,67,75,.04)!important}
+tr.rsum-last .c-cb,tr.rsum-last .c-drag,tr.rsum-last .c-feat,tr.rsum-last .c-pri,tr.rsum-last .c-eta,tr.rsum-last .c-tot{background:rgba(226,67,75,.04)!important}
+
+/* ETA / Total */
+.etac{padding:0 8px;font-family:var(--fm);font-size:11px;color:var(--fg3);white-space:nowrap}
+.totc{padding:0 8px;text-align:center;font-family:var(--fm);font-size:12px;font-weight:700;color:var(--fg2)}
+/* Checkbox — bulk select */
+.cbc{padding:0 10px;text-align:center}
+.cbc input{width:14px;height:14px;accent-color:var(--ac);cursor:pointer;opacity:.3;transition:opacity 120ms}
+tr:hover .cbc input,.cbc input:checked{opacity:1}
+
+/* Drag handle */
+.dh{padding:0 6px;color:var(--fg4);cursor:grab;opacity:.35;font-size:14px;user-select:none;text-align:center;transition:opacity 120ms}
+.dh:hover{opacity:.85;color:var(--fg2)}
+.dragging{opacity:.35}
+.dragging td{background:var(--s3)!important}
+.drop-before td:first-child{box-shadow:0 -2px 0 0 var(--ac) inset!important}
+.drop-before-line{position:relative}
+
+/* Timeline */
+.tlv{flex:1;min-height:0;overflow:auto;padding:24px 28px;display:none}
+.tlv.on{display:block}
+.gt-wrap{overflow:hidden;border-radius:var(--r-lg);border:1px solid var(--b-sub);background:var(--s1);box-shadow:var(--sh-sm)}
+.gt{border-collapse:separate;border-spacing:0;width:100%}
+.gt thead th{background:var(--s1);padding:10px 14px;font-family:var(--fm);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg3);border-bottom:1px solid var(--b-sub);font-weight:500}
+.gt thead th:first-child{width:220px;text-align:left}
+.gt-wc{text-align:center;border-left:1px solid var(--b-sub)}
+.gr td{padding:7px 14px;border-bottom:1px solid var(--b-sub);vertical-align:middle}
+.gr:last-child td{border-bottom:none}
+.gn{font-size:13px;font-weight:500;color:var(--fg1);display:flex;align-items:center;gap:8px}
+.gt-sub .gn{font-size:12px;font-weight:400;color:var(--fg2);padding-left:24px}
+.gbc{padding:4px 6px;border-left:1px solid var(--b-sub)}
+.gbar{height:20px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-family:var(--fm);font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden}
+.gb-be {background:var(--be-bg); border:1px solid var(--be-b); color:var(--be-t)}
+.gb-fw {background:var(--few-bg);border:1px solid var(--few-b);color:var(--few-t)}
+.gb-qa {background:var(--qa-bg); border:1px solid var(--qa-b); color:var(--qa-t)}
+.gb-all{background:var(--ac-m); border:1px solid var(--ac-b); color:var(--ac-t)}
+.gpr td{background:var(--s3);border-bottom:1px solid var(--b-str)}
+.gpr .gn{font-weight:700}
+.ge{border-left:1px solid var(--b-sub)}
+.hatch{background:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(0,0,0,.03) 5px,rgba(0,0,0,.03) 10px)}
+
+/* Archive */
+.arch-view{flex:1;min-height:0;overflow:auto;padding:24px 28px;display:none}
+.arch-view.on{display:flex;flex-direction:column;gap:10px}
+.arch-row{background:var(--s1);border:1px solid var(--b-sub);border-radius:var(--r-lg);padding:14px 18px;display:flex;align-items:center;gap:14px;opacity:.75}
+.arch-name{font-family:var(--fd);font-size:14px;font-weight:600;color:var(--fg1)}
+.arch-meta{font-family:var(--fm);font-size:11px;color:var(--fg4);display:flex;align-items:center;gap:10px;margin-top:3px;flex-wrap:wrap}
+.restore-btn{margin-left:12px;padding:5px 12px;border-radius:var(--r-md);background:var(--s3);border:1px solid var(--b-str);color:var(--fg2);font-family:var(--fm);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;transition:background 120ms,border-color 120ms,color 120ms}
+.restore-btn:hover{background:var(--ac-m);border-color:var(--ac-b);color:var(--ac-t)}
+.arch-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--fg4);padding:60px 0;font-size:13px}
+
+/* History */
+.hist-panel{position:fixed;right:0;top:37px;bottom:0;width:298px;background:var(--s1);border-left:1px solid var(--b-sub);display:flex;flex-direction:column;z-index:800;box-shadow:var(--sh-lg);transform:translateX(100%);transition:transform 200ms}
+.hist-panel.open{transform:translateX(0)}
+.hp-head{padding:14px 16px;border-bottom:1px solid var(--b-sub);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.hp-title{font-family:var(--fd);font-size:14px;font-weight:600;color:var(--fg1)}
+.hp-cl{margin-left:auto}
+.hp-filter{padding:10px 14px;border-bottom:1px solid var(--b-sub);flex-shrink:0}
+.hp-filter select{width:100%;padding:7px 10px;border-radius:var(--r-md);border:1px solid var(--b-str);background:var(--s3);font-family:var(--fm);font-size:11.5px;color:var(--fg2);outline:none;cursor:pointer}
+.hp-list{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:5px}
+.hp-e{padding:10px 12px;border-radius:var(--r-md);border:1px solid var(--b-sub);background:var(--bg)}
+.hp-time{font-family:var(--fm);font-size:10px;color:var(--fg4);margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.hp-proj{font-family:var(--fm);font-size:9px;background:var(--ac-m);color:var(--ac-t);border:1px solid var(--ac-b);padding:1px 6px;border-radius:var(--r-full);flex-shrink:0}
+.hp-sys{font-family:var(--fm);font-size:9px;background:var(--s3);color:var(--fg4);border:1px solid var(--b-sub);padding:1px 6px;border-radius:var(--r-full);flex-shrink:0}
+.hp-desc{font-size:12.5px;color:var(--fg2);line-height:1.4}
+.hp-diff{font-family:var(--fm);font-size:11px;margin-top:3px}
+.d-old{color:var(--dan-t)}.d-new{color:var(--ac-t)}
+
+/* Status bar */
+.stbar{flex-shrink:0;padding:5px 28px;background:var(--s1);border-top:1px solid var(--b-sub);display:flex;align-items:center;gap:14px}
+.stbar span{font-family:var(--fm);font-size:10.5px;color:var(--fg4)}
+.stbar strong{color:var(--fg2)}
+.st-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ac);margin-right:4px;vertical-align:middle}
+svg{display:block}
+</style>
+</head>
+<body>
+
+<!-- Meta bar -->
+<div class="meta-bar">
+  <span>MOCKUP</span>
+  <button class="mbtn on" onclick="switchView('grid')" id="mb-g">Grid View</button>
+  <button class="mbtn" onclick="switchView('tl')" id="mb-t">Timeline View</button>
+  <button class="mbtn" onclick="switchView('arch')" id="mb-a">Archive View</button>
+  <button class="mbtn" onclick="toggleHist()" style="margin-left:8px">History Panel</button>
+  <span class="meta-r">Project Timeline & Capacity Planner</span>
+</div>
+
+<!-- History panel -->
+<div class="hist-panel" id="hist-panel">
+  <div class="hp-head">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span class="hp-title">Change History</span>
+    <button class="ib hp-cl" onclick="toggleHist()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="hp-filter">
+    <select onchange="filterHist(this.value)">
+      <option value="all">All projects</option>
+      <option value="checkout">Checkout Revamp</option>
+      <option value="mobile">Mobile Redesign</option>
+      <option value="backend">Backend Refactor</option>
+    </select>
+  </div>
+  <div class="hp-list" id="hist-list">
+    <div class="hp-e" data-proj="backend">
+      <div class="hp-time"><span class="hp-proj">Backend Refactor</span>Today 10:32 AM · Jordan K.</div>
+      <div class="hp-desc">Priority changed</div>
+      <div class="hp-diff"><span class="d-old">P3</span> → <span class="d-new">P1</span></div>
+    </div>
+    <div class="hp-e" data-proj="backend">
+      <div class="hp-time"><span class="hp-sys">System</span><span class="hp-proj">Backend Refactor</span>Today 10:32 AM</div>
+      <div class="hp-desc">Timeline auto-shifted (priority cascade)</div>
+      <div class="hp-diff"><span class="d-old">starts W3</span> → <span class="d-new">starts W4</span></div>
+    </div>
+    <div class="hp-e" data-proj="backend">
+      <div class="hp-time"><span class="hp-proj">Backend Refactor</span>Today 9:15 AM · Jordan K.</div>
+      <div class="hp-desc">Mandays updated: API Gateway · BE · W3</div>
+      <div class="hp-diff"><span class="d-old">3 md</span> → <span class="d-new">5 md</span></div>
+    </div>
+    <div class="hp-e" data-proj="checkout">
+      <div class="hp-time"><span class="hp-proj">Checkout Revamp</span>Yesterday 4:50 PM · Jordan K.</div>
+      <div class="hp-desc">Mandays updated: Checkout UI · FE Web · W2</div>
+      <div class="hp-diff"><span class="d-old">2 md</span> → <span class="d-new">3 md</span></div>
+    </div>
+    <div class="hp-e" data-proj="checkout">
+      <div class="hp-time"><span class="hp-proj">Checkout Revamp</span>Yesterday 2:10 PM · Jordan K.</div>
+      <div class="hp-desc">Status changed: Payment API Integration</div>
+      <div class="hp-diff"><span class="d-old">To Do</span> → <span class="d-new">In Progress</span></div>
+    </div>
+    <div class="hp-e" data-proj="mobile">
+      <div class="hp-time"><span class="hp-proj">Mobile Redesign</span>Jun 1, 11:20 AM · Jordan K.</div>
+      <div class="hp-desc">Priority changed</div>
+      <div class="hp-diff"><span class="d-old">P3</span> → <span class="d-new">P2</span></div>
+    </div>
+    <div class="hp-e" data-proj="mobile">
+      <div class="hp-time"><span class="hp-sys">System</span><span class="hp-proj">Mobile Redesign</span>Jun 1, 11:20 AM</div>
+      <div class="hp-desc">Timeline recalculated (priority reorder)</div>
+      <div class="hp-diff"><span class="d-old">starts W3</span> → <span class="d-new">starts W1</span></div>
+    </div>
+    <div class="hp-e" data-proj="mobile">
+      <div class="hp-time"><span class="hp-proj">Mobile Redesign</span>Jun 1, 9:00 AM · Jordan K.</div>
+      <div class="hp-desc">Capacity updated: W3 · QA</div>
+      <div class="hp-diff"><span class="d-old">10 md</span> → <span class="d-new">7 md</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Status dropdown portal (body-level, not clipped by overflow) -->
+<div id="status-portal">
+  <div class="sdrop-item" data-cls="s-ip"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+  <div class="sdrop-item" data-cls="s-td"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+  <div class="sdrop-item" data-cls="s-dn"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+  <div class="sdrop-item" data-cls="s-rl"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+  <div class="sdrop-item" data-cls="s-cx"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+</div>
+
+<!-- Bulk action bar -->
+<div class="bulk-bar" id="bulk-bar">
+  <span class="bulk-count" id="bulk-count">0 selected</span>
+  <div class="bulk-sep"></div>
+  <button class="bulk-btn" onclick="bulkArchive()">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg>Archive
+  </button>
+  <button class="bulk-btn">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="5 9 2 12 5 15"/><path d="M2 12h15"/><path d="M8 5h11a2 2 0 012 2v10a2 2 0 01-2 2H8"/></svg>Move to…
+  </button>
+  <button class="bulk-btn">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Mark done
+  </button>
+  <div class="bulk-sep"></div>
+  <button class="bulk-btn danger">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>Delete
+  </button>
+  <div class="bulk-sep"></div>
+  <button class="bulk-btn cancel" onclick="clearSelection()">Cancel</button>
+</div>
+
+<div class="wrap">
+<div class="app">
+
+<!-- Sidebar -->
+<aside class="sb">
+  <div class="sb-top">
+    <div class="logo"><svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M3 7l4-4 3 3 3-3 4 4M3 13l4 4 3-3 3 3 4-4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <span class="brand">VibeKit</span><span class="bbadge">beta</span>
+  </div>
+  <div class="sb-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <span>Search tools…</span><span class="kbd">Ctrl K</span>
+  </div>
+  <div class="sb-scroll">
+    <div class="nav-lbl">Tools <span class="ct">2 active</span></div>
+    <nav class="nav">
+      <button class="ni"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>HTML beautifier</button>
+      <button class="ni"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>HTML bulk downloader</button>
+      <button class="ni dim"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>JSON formatter<span class="ntag">soon</span></button>
+    </nav>
+
+    <div class="nav-lbl" style="margin-top:4px">
+      Project planner
+      <span class="ct" style="color:var(--ac-t);background:var(--ac-m);border:1px solid var(--ac-b);border-radius:var(--r-full);padding:1px 7px;font-size:9px;letter-spacing:.06em;text-transform:uppercase">new</span>
+    </div>
+    <nav class="nav">
+      <button class="ni on">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        Project timeline & capacity
+      </button>
+    </nav>
+
+    <div class="nav-lbl" style="margin-top:4px">Personal assistance</div>
+    <nav class="nav">
+      <button class="ni dim"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.912 5.813a2 2 0 01-1.275 1.275L3 12l5.813 1.912a2 2 0 011.275 1.275L12 21l1.912-5.813a2 2 0 011.275-1.275L21 12l-5.813-1.912a2 2 0 01-1.275-1.275L12 3z"/></svg>Commit writer<span class="ntag" style="color:var(--ac-t);border-color:var(--ac-b)">AI</span></button>
+    </nav>
+  </div>
+  <div class="sb-foot">
+    <div class="av">JK</div>
+    <div><div class="fn">Jordan Kessler</div><div class="fp">Pro plan</div></div>
+    <button class="set-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="bc">
+      <button class="bc-l">VibeKit</button>
+      <span class="bc-s"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+      <button class="bc-l">Project Planner</button>
+      <span class="bc-s"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+      <span class="bc-c">Project Timeline & Capacity</span>
+    </div>
+    <div class="tba">
+      <button class="ib"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></button>
+      <button class="ib"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></button>
+    </div>
+  </div>
+
+  <!-- Tool header -->
+  <div class="ph">
+    <div class="pi"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+    <div>
+      <div class="ptitle">Project Timeline & Capacity Planner</div>
+      <div class="psub">3 active projects · 8 tasks</div>
+    </div>
+    <div class="pha">
+      <div class="seg">
+        <button class="sb-btn on" onclick="switchView('grid')" id="vg">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Grid
+        </button>
+        <button class="sb-btn" onclick="switchView('tl')" id="vt">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:4px"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>Timeline
+        </button>
+        <button class="sb-btn" onclick="switchView('arch')" id="va">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>Archive
+        </button>
+      </div>
+      <div class="tsep"></div>
+      <button class="btn btn-g" style="font-size:12.5px;padding:6px 12px" onclick="toggleHist()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>History
+      </button>
+      <button class="btn btn-g" style="font-size:12.5px;padding:6px 12px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>Export .xlsx
+      </button>
+      <button class="btn btn-p" style="font-size:12.5px;padding:6px 12px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Project
+      </button>
+    </div>
+  </div>
+
+  <div class="pb">
+    <!-- Toolbar -->
+    <div class="toolbar" id="toolbar-bar">
+      <span style="font-family:var(--fm);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--fg4)">Filter</span>
+      <button class="chip on">All</button>
+      <button class="chip">P1</button>
+      <button class="chip">P2</button>
+      <button class="chip">In Progress</button>
+      <div class="tsep"></div>
+      <button class="chip on" style="background:var(--be-bg);border-color:var(--be-b);color:var(--be-t)">BE</button>
+      <button class="chip on" style="background:var(--few-bg);border-color:var(--few-b);color:var(--few-t)">FE Web</button>
+      <button class="chip on" style="background:var(--fea-bg);border-color:var(--fea-b);color:var(--fea-t)">FE Android</button>
+      <button class="chip on" style="background:var(--fei-bg);border-color:var(--fei-b);color:var(--fei-t)">FE iOS</button>
+      <button class="chip on" style="background:var(--qa-bg);border-color:var(--qa-b);color:var(--qa-t)">QA</button>
+      <button class="chip" style="border-style:dashed"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add role</button>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <span style="font-family:var(--fm);font-size:10px;color:var(--fg4)">Start</span>
+        <span style="font-family:var(--fm);font-size:11px;font-weight:600;color:var(--fg2);background:var(--s3);padding:3px 9px;border-radius:var(--r-sm);border:1px solid var(--b-sub);cursor:pointer" title="Click to change start date">Jun 2, 2025</span>
+        <span style="color:var(--fg4);font-size:12px">→</span>
+        <span style="font-family:var(--fm);font-size:10px;color:var(--fg4)">End</span>
+        <span style="font-family:var(--fm);font-size:11px;font-weight:600;color:var(--fg2);background:var(--s3);padding:3px 9px;border-radius:var(--r-sm);border:1px solid var(--b-sub);cursor:pointer" title="Click to change end date">Jul 11, 2025</span>
+      </div>
+    </div>
+
+    <!-- ━━ GRID VIEW ━━ -->
+    <div class="gv" id="grid-view">
+      <div class="gw">
+        <table class="grid" id="main-table">
+          <thead>
+          <tr class="th-w">
+            <th class="c-cb th-sp th-hdr"></th>
+            <th class="c-drag th-sp"></th>
+            <th class="c-feat th-sp th-hdr">Feature / Task</th>
+            <th class="c-pri th-sp th-hdr c">Pri</th>
+            <th class="c-eta th-sp th-hdr">ETA</th>
+            <th class="c-tot th-sp th-hdr c">Total<br><span style="font-size:9px">effort</span></th>
+            <th colspan="5" class="th-wg first"><span class="wr">Jun 2–6, 2025</span></th>
+            <th colspan="5" class="th-wg"><span class="wr">Jun 9–13, 2025</span></th>
+            <th colspan="5" class="th-wg"><span class="wr">Jun 16–20, 2025</span></th>
+            <th colspan="5" class="th-wg"><span class="wr">Jun 23–27, 2025</span></th>
+          </tr>
+          <tr class="th-r">
+            <th class="c-cb th-sp"></th><th class="c-drag th-sp"></th><th class="c-feat th-sp"></th>
+            <th class="c-pri th-sp"></th><th class="c-eta th-sp"></th><th class="c-tot th-sp"></th>
+            <th class="r-be first">BE</th><th class="r-few">FE Web</th><th class="r-fea">FE App</th><th class="r-fei">FE iOS</th><th class="r-qa">QA</th>
+            <th class="r-be first">BE</th><th class="r-few">FE Web</th><th class="r-fea">FE App</th><th class="r-fei">FE iOS</th><th class="r-qa">QA</th>
+            <th class="r-be first">BE</th><th class="r-few">FE Web</th><th class="r-fea">FE App</th><th class="r-fei">FE iOS</th><th class="r-qa">QA</th>
+            <th class="r-be first">BE</th><th class="r-few">FE Web</th><th class="r-fea">FE App</th><th class="r-fei">FE iOS</th><th class="r-qa">QA</th>
+          </tr>
+          </thead>
+
+          <tbody id="task-body">
+          <!-- ── SUMMARY ROWS (in tbody — no z-index battle) ── -->
+          <tr class="rsum">
+            <td class="c-cb"></td><td class="c-drag"></td>
+            <td class="c-feat" style="padding:0 10px"><span class="sum-lbl">Capacity (mandays)</span></td>
+            <td class="c-pri"></td><td class="c-eta"></td><td class="c-tot"></td>
+            <td class="sum-v wk-s"><input class="cap-in" value="15"></td><td class="sum-v"><input class="cap-in" value="10"></td><td class="sum-v"><input class="cap-in" value="5"></td><td class="sum-v"><input class="cap-in" value="5"></td><td class="sum-v"><input class="cap-in" value="10"></td>
+            <td class="sum-v wk-s"><input class="cap-in" value="15"></td><td class="sum-v"><input class="cap-in" value="10"></td><td class="sum-v"><input class="cap-in" value="5"></td><td class="sum-v"><input class="cap-in" value="5"></td><td class="sum-v"><input class="cap-in" value="10"></td>
+            <td class="sum-v wk-s"><input class="cap-in" value="15"></td><td class="sum-v"><input class="cap-in" value="10"></td><td class="sum-v"><input class="cap-in" value="5"></td><td class="sum-v"><input class="cap-in" value="5"></td><td class="sum-v"><input class="cap-in" value="7" style="color:var(--warn-t)" title="Reduced — holiday"></td>
+            <td class="sum-v wk-s"><input class="cap-in" value="15"></td><td class="sum-v"><input class="cap-in" value="10"></td><td class="sum-v"><input class="cap-in" value="5"></td><td class="sum-v"><input class="cap-in" value="5"></td><td class="sum-v"><input class="cap-in" value="10"></td>
+          </tr>
+          <tr class="rsum rsum-req">
+            <td class="c-cb"></td><td class="c-drag"></td>
+            <td class="c-feat" style="padding:0 10px"><span class="sum-lbl" style="color:var(--fg2)">Total Required</span></td>
+            <td class="c-pri"></td><td class="c-eta"></td><td class="c-tot"></td>
+            <td class="sum-v-req wk-s">8</td><td class="sum-v-req">5</td><td class="sum-v-req">2</td><td class="sum-v-req">3</td><td class="sum-v-req">9</td>
+            <td class="sum-v-req wk-s">10</td><td class="sum-v-req">11</td><td class="sum-v-req">0</td><td class="sum-v-req">0</td><td class="sum-v-req">7</td>
+            <td class="sum-v-req wk-s">11</td><td class="sum-v-req">5</td><td class="sum-v-req">0</td><td class="sum-v-req">0</td><td class="sum-v-req">7</td>
+            <td class="sum-v-req wk-s">9</td><td class="sum-v-req">4</td><td class="sum-v-req">0</td><td class="sum-v-req">0</td><td class="sum-v-req">0</td>
+          </tr>
+          <tr class="rsum">
+            <td class="c-cb"></td><td class="c-drag"></td>
+            <td class="c-feat" style="padding:0 10px"><span class="sum-lbl">Taken (other squad)</span></td>
+            <td class="c-pri"></td><td class="c-eta"></td><td class="c-tot"></td>
+            <td class="sum-v wk-s" style="color:var(--fg3)">2</td><td class="sum-v" style="color:var(--fg3)">1</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg3)">2</td>
+            <td class="sum-v wk-s" style="color:var(--fg3)">2</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg3)">1</td>
+            <td class="sum-v wk-s" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg3)">2</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td>
+            <td class="sum-v wk-s" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td>
+          </tr>
+          <tr class="rsum">
+            <td class="c-cb"></td><td class="c-drag"></td>
+            <td class="c-feat" style="padding:0 10px"><span class="sum-lbl">Holiday / Day-off</span></td>
+            <td class="c-pri"></td><td class="c-eta"></td><td class="c-tot"></td>
+            <td class="sum-v wk-s" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td>
+            <td class="sum-v wk-s" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--warn-t)">1</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td>
+            <td class="sum-v wk-s" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--warn-t)">3</td>
+            <td class="sum-v wk-s" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td><td class="sum-v" style="color:var(--fg4)">—</td>
+          </tr>
+          <tr class="rsum">
+            <td class="c-cb"></td><td class="c-drag"></td>
+            <td class="c-feat" style="padding:0 10px"><span class="sum-lbl">Buffer / Shortage</span></td>
+            <td class="c-pri"></td><td class="c-eta"></td><td class="c-tot"></td>
+            <td class="sum-v wk-s buf-p">+5</td><td class="sum-v buf-p">+4</td><td class="sum-v buf-p">+3</td><td class="sum-v buf-p">+2</td><td class="sum-v buf-n buf-n-bg">-1</td>
+            <td class="sum-v wk-s buf-p">+3</td><td class="sum-v buf-n buf-n-bg">-2</td><td class="sum-v buf-p">+5</td><td class="sum-v buf-p">+5</td><td class="sum-v buf-p">+2</td>
+            <td class="sum-v wk-s buf-p">+4</td><td class="sum-v buf-n buf-n-bg">-1</td><td class="sum-v buf-p">+5</td><td class="sum-v buf-p">+5</td><td class="sum-v buf-n buf-n-bg">-3</td>
+            <td class="sum-v wk-s buf-p">+6</td><td class="sum-v buf-p">+5</td><td class="sum-v buf-p">+5</td><td class="sum-v buf-p">+5</td><td class="sum-v buf-p">+8</td>
+          </tr>
+          <tr class="rsum rsum-last" style="--thr-bg:rgba(226,67,75,.05)">
+            <td class="c-cb"></td><td class="c-drag"></td>
+            <td class="c-feat" style="padding:0 10px">
+              <span class="sum-lbl" style="color:var(--dan-t)">Min Buffer Threshold</span>
+              <span style="font-family:var(--fm);font-size:9px;color:var(--fg4);margin-left:6px">cascade trigger ↓</span>
+            </td>
+            <td class="c-pri"></td><td class="c-eta"></td><td class="c-tot"></td>
+            <!-- W1: BE=4.25, FEW=3, FEA=2, FEI=2, QA=1 — user example -->
+            <td class="sum-v wk-s" style="color:var(--dan-t)"><input class="cap-in" value="4.25" style="color:var(--dan-t)" title="Min buffer — if actual buffer drops below this, lower-priority items cascade to next week"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="3" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="2" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="2" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="1" style="color:var(--dan-t)"></td>
+            <!-- W2 -->
+            <td class="sum-v wk-s" style="color:var(--dan-t)"><input class="cap-in" value="4" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="3" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="2" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="2" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="1" style="color:var(--dan-t)"></td>
+            <!-- W3 -->
+            <td class="sum-v wk-s" style="color:var(--dan-t)"><input class="cap-in" value="4" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="3" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="2" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="2" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="1" style="color:var(--dan-t)"></td>
+            <!-- W4 -->
+            <td class="sum-v wk-s" style="color:var(--dan-t)"><input class="cap-in" value="4" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="3" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="2" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="2" style="color:var(--dan-t)"></td>
+            <td class="sum-v" style="color:var(--dan-t)"><input class="cap-in" value="1" style="color:var(--dan-t)"></td>
+          </tr>
+
+          <!-- ── PROJECT 1: Checkout Revamp ── -->
+          <tr class="rp" draggable="true" data-id="p1" data-type="project">
+            <td class="c-cb cbc"><input type="checkbox" checked></td>
+            <td class="c-drag dh" title="Drag to reorder">⠿</td>
+            <td class="c-feat"><div class="fc"><span class="proj-icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--ac-t)" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span><span class="fname">Checkout Revamp</span><span class="istat" id="is-p1"></span></div></td>
+            <td class="c-pri pc"><span class="badge p1">P1</span></td>
+            <td class="c-stat sc">
+              <span class="st s-ip" onclick="openStatus(this)"><span class="sdot"></span>In Progress</span>
+              <div class="sdrop" onclick="event.stopPropagation()">
+                <div class="sdrop-item" onclick="setStatus(this,'s-ip','In Progress')"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-td','To Do')"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-dn','Done')"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-rl','Released')"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-cx','Cancelled')"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+              </div>
+            </td>
+            <td class="c-eta etac">Jun 20</td><td class="c-tot totc">22</td>
+            <td class="ec be-c wk-s"><input value="5" placeholder="–"></td><td class="ec fw-c"><input value="3" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec qa-c"><input value="2" placeholder="–"></td>
+            <td class="ec be-c wk-s"><input value="4" placeholder="–"></td><td class="ec fw-c"><input value="3" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec qa-c"><input value="3" placeholder="–"></td>
+            <td class="ec be-c wk-s"><input value="2" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+          </tr>
+          <tr class="rt" draggable="true" data-id="t1" data-parent="p1">
+            <td class="c-cb cbc"><input type="checkbox" checked></td>
+            <td class="c-drag dh" title="Drag to reorder">⠿</td>
+            <td class="c-feat"><div class="fc"><span class="fname">Payment API Integration</span><span class="istat" id="is-t1"></span></div></td>
+            <td class="c-pri pc"><span class="badge p1">P1</span></td>
+            <td class="c-stat sc">
+              <span class="st s-ip" onclick="openStatus(this)"><span class="sdot"></span>In Progress</span>
+              <div class="sdrop" onclick="event.stopPropagation()">
+                <div class="sdrop-item" onclick="setStatus(this,'s-ip','In Progress')"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-td','To Do')"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-dn','Done')"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-rl','Released')"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-cx','Cancelled')"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+              </div>
+            </td>
+            <td class="c-eta etac">Jun 13</td><td class="c-tot totc">12</td>
+            <td class="ec be-c wk-s"><input value="3" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec qa-c"><input value="2" placeholder="–"></td>
+            <td class="ec be-c wk-s"><input value="4" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec qa-c"><input value="3" placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+          </tr>
+          <tr class="rt" draggable="true" data-id="t2" data-parent="p1">
+            <td class="c-cb cbc"><input type="checkbox" checked></td>
+            <td class="c-drag dh" title="Drag to reorder">⠿</td>
+            <td class="c-feat"><div class="fc"><span class="fname">Checkout UI Redesign</span><span class="istat" id="is-t2"></span></div></td>
+            <td class="c-pri pc"><span class="badge p1">P1</span></td>
+            <td class="c-stat sc">
+              <span class="st s-ip" onclick="openStatus(this)"><span class="sdot"></span>In Progress</span>
+              <div class="sdrop" onclick="event.stopPropagation()">
+                <div class="sdrop-item" onclick="setStatus(this,'s-ip','In Progress')"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-td','To Do')"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-dn','Done')"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-rl','Released')"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-cx','Cancelled')"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+              </div>
+            </td>
+            <td class="c-eta etac">Jun 20</td><td class="c-tot totc">7</td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec fw-c"><input value="3" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec fw-c"><input value="3" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec be-c wk-s"><input value="1" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+          </tr>
+
+          <!-- ── PROJECT 2: Mobile Redesign ── -->
+          <tr class="rp" draggable="true" data-id="p2" data-type="project">
+            <td class="c-cb cbc"><input type="checkbox" checked></td>
+            <td class="c-drag dh" title="Drag to reorder">⠿</td>
+            <td class="c-feat"><div class="fc"><span class="proj-icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--ac-t)" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span><span class="fname">Mobile Redesign</span><span class="istat" id="is-p2"></span></div></td>
+            <td class="c-pri pc"><span class="badge p2">P2</span></td>
+            <td class="c-stat sc">
+              <span class="st s-td" onclick="openStatus(this)"><span class="sdot"></span>To Do</span>
+              <div class="sdrop" onclick="event.stopPropagation()">
+                <div class="sdrop-item" onclick="setStatus(this,'s-ip','In Progress')"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-td','To Do')"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-dn','Done')"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-rl','Released')"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-cx','Cancelled')"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+              </div>
+            </td>
+            <td class="c-eta etac">Jul 4</td><td class="c-tot totc">34</td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec fw-c"><input value="3" placeholder="–"></td><td class="ec fa-c"><input value="2" placeholder="–"></td><td class="ec fi-c"><input value="2" placeholder="–"></td><td class="ec qa-c"><input value="4" placeholder="–"></td>
+            <td class="ec be-c wk-s"><input value="3" placeholder="–"></td><td class="ec fw-c"><input value="5" placeholder="–"></td><td class="ec fa-c"><input value="5" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec qa-c"><input value="4" placeholder="–"></td>
+            <td class="ec be-c wk-s"><input value="2" placeholder="–"></td><td class="ec fw-c"><input value="3" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec qa-c"><input value="5" placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+          </tr>
+          <tr class="rt" draggable="true" data-id="t3" data-parent="p2">
+            <td class="c-cb cbc"><input type="checkbox" checked></td>
+            <td class="c-drag dh" title="Drag to reorder">⠿</td>
+            <td class="c-feat"><div class="fc"><span class="fname">Design System Tokens</span><span class="istat" id="is-t3"></span></div></td>
+            <td class="c-pri pc"><span class="badge p2">P2</span></td>
+            <td class="c-stat sc">
+              <span class="st s-td" onclick="openStatus(this)"><span class="sdot"></span>To Do</span>
+              <div class="sdrop" onclick="event.stopPropagation()">
+                <div class="sdrop-item" onclick="setStatus(this,'s-ip','In Progress')"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-td','To Do')"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-dn','Done')"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-rl','Released')"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-cx','Cancelled')"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+              </div>
+            </td>
+            <td class="c-eta etac">Jun 13</td><td class="c-tot totc">9</td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec fw-c"><input value="3" placeholder="–"></td><td class="ec fa-c"><input value="2" placeholder="–"></td><td class="ec fi-c"><input value="2" placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec fw-c"><input value="2" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+          </tr>
+          <tr class="rt" draggable="true" data-id="t4" data-parent="p2">
+            <td class="c-cb cbc"><input type="checkbox" checked></td>
+            <td class="c-drag dh" title="Drag to reorder">⠿</td>
+            <td class="c-feat"><div class="fc"><span class="fname">iOS Navigation Overhaul</span><span class="istat" id="is-t4"></span></div></td>
+            <td class="c-pri pc"><span class="badge p2">P2</span></td>
+            <td class="c-stat sc">
+              <span class="st s-td" onclick="openStatus(this)"><span class="sdot"></span>To Do</span>
+              <div class="sdrop" onclick="event.stopPropagation()">
+                <div class="sdrop-item" onclick="setStatus(this,'s-ip','In Progress')"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-td','To Do')"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-dn','Done')"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-rl','Released')"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-cx','Cancelled')"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+              </div>
+            </td>
+            <td class="c-eta etac">Jul 4</td><td class="c-tot totc">12</td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec fa-c"><input value="0" placeholder="–"></td><td class="ec fi-c"><input value="0" placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec fa-c"><input value="5" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec qa-c"><input value="4" placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec qa-c"><input value="3" placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+          </tr>
+
+          <!-- ── PROJECT 3: Backend Refactor (pushed) ── -->
+          <tr class="rp" draggable="true" data-id="p3" data-type="project">
+            <td class="c-cb cbc"><input type="checkbox" checked></td>
+            <td class="c-drag dh" title="Drag to reorder">⠿</td>
+            <td class="c-feat"><div class="fc"><span class="proj-icon"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--ac-t)" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span><span class="fname">Backend Refactor</span><span class="push-tag">→W4</span><span class="istat" id="is-p3"></span></div></td>
+            <td class="c-pri pc"><span class="badge p1">P1</span></td>
+            <td class="c-stat sc">
+              <span class="st s-td" onclick="openStatus(this)"><span class="sdot"></span>To Do</span>
+              <div class="sdrop" onclick="event.stopPropagation()">
+                <div class="sdrop-item" onclick="setStatus(this,'s-ip','In Progress')"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-td','To Do')"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-dn','Done')"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-rl','Released')"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-cx','Cancelled')"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+              </div>
+            </td>
+            <td class="c-eta etac">Jul 11</td><td class="c-tot totc">18</td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec be-c wk-s"><input value="6" placeholder="–"></td><td class="ec fw-c"><input value="4" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+          </tr>
+          <tr class="rt" draggable="true" data-id="t5" data-parent="p3">
+            <td class="c-cb cbc"><input type="checkbox" checked></td>
+            <td class="c-drag dh" title="Drag to reorder">⠿</td>
+            <td class="c-feat"><div class="fc"><span class="fname">API Gateway Migration</span><span class="istat" id="is-t5"></span></div></td>
+            <td class="c-pri pc"><span class="badge p1">P1</span></td>
+            <td class="c-stat sc">
+              <span class="st s-td" onclick="openStatus(this)"><span class="sdot"></span>To Do</span>
+              <div class="sdrop" onclick="event.stopPropagation()">
+                <div class="sdrop-item" onclick="setStatus(this,'s-ip','In Progress')"><span class="sdot" style="background:#3b82f6"></span>In Progress</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-td','To Do')"><span class="sdot" style="background:var(--fg4)"></span>To Do</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-dn','Done')"><span class="sdot" style="background:var(--ac)"></span>Done</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-rl','Released')"><span class="sdot" style="background:#8b5cf6"></span>Released</div>
+                <div class="sdrop-item" onclick="setStatus(this,'s-cx','Cancelled')"><span class="sdot" style="background:var(--fg4)"></span>Cancelled</div>
+              </div>
+            </td>
+            <td class="c-eta etac">Jul 11</td><td class="c-tot totc">8</td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec wk-s"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+            <td class="ec be-c wk-s"><input value="5" placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td><td class="ec"><input placeholder="–"></td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div><!-- /grid-view -->
+
+    <!-- ━━ TIMELINE VIEW ━━ -->
+    <div class="tlv" id="tl-view">
+      <div class="gt-wrap">
+      <table class="gt">
+        <thead><tr>
+          <th style="text-align:left">Feature / Task</th>
+          <th class="gt-wc">Week 1<br><span style="font-size:9px;color:var(--fg4);font-weight:400">Jun 2–6</span></th>
+          <th class="gt-wc">Week 2<br><span style="font-size:9px;color:var(--fg4);font-weight:400">Jun 9–13</span></th>
+          <th class="gt-wc">Week 3<br><span style="font-size:9px;color:var(--fg4);font-weight:400">Jun 16–20</span></th>
+          <th class="gt-wc">Week 4<br><span style="font-size:9px;color:var(--fg4);font-weight:400">Jun 23–27</span></th>
+          <th class="gt-wc">Week 5<br><span style="font-size:9px;color:var(--fg4);font-weight:400">Jun 30–Jul 4</span></th>
+          <th class="gt-wc">Week 6<br><span style="font-size:9px;color:var(--fg4);font-weight:400">Jul 7–11</span></th>
+        </tr></thead>
+        <tbody>
+          <tr class="gr gpr"><td><div class="gn"><span class="badge p1" style="flex-shrink:0">P1</span>Checkout Revamp<span class="st s-ip" style="margin-left:auto;font-size:10px"><span class="sdot"></span>In Progress</span></div></td>
+            <td class="gbc"><div class="gbar gb-all" style="width:100%">22 md</div></td><td class="gbc"><div class="gbar gb-all" style="width:100%"></div></td>
+            <td class="gbc"><div class="gbar gb-be" style="width:35%">3 md</div></td><td class="ge"></td><td class="ge"></td><td class="ge"></td></tr>
+          <tr class="gr gt-sub"><td><div class="gn">Payment API Integration</div></td>
+            <td class="gbc"><div class="gbar gb-be" style="width:100%">BE: 3</div></td><td class="gbc"><div class="gbar gb-be" style="width:100%">BE: 4</div></td>
+            <td class="ge"></td><td class="ge"></td><td class="ge"></td><td class="ge"></td></tr>
+          <tr class="gr gt-sub"><td><div class="gn">Checkout UI Redesign</div></td>
+            <td class="gbc"><div class="gbar gb-fw" style="width:100%">FE: 3</div></td><td class="gbc"><div class="gbar gb-fw" style="width:100%">FE: 3</div></td>
+            <td class="gbc"><div class="gbar gb-be" style="width:25%">1</div></td><td class="ge"></td><td class="ge"></td><td class="ge"></td></tr>
+          <tr style="height:6px"><td colspan="7" style="border:none;background:var(--bg-s)"></td></tr>
+          <tr class="gr gpr"><td><div class="gn"><span class="badge p2" style="flex-shrink:0">P2</span>Mobile Redesign<span class="st s-td" style="margin-left:auto;font-size:10px"><span class="sdot"></span>To Do</span></div></td>
+            <td class="gbc"><div class="gbar gb-all" style="width:100%">34 md</div></td><td class="gbc"><div class="gbar gb-all" style="width:100%"></div></td>
+            <td class="gbc"><div class="gbar gb-all" style="width:100%"></div></td><td class="ge"></td><td class="ge"></td><td class="ge"></td></tr>
+          <tr class="gr gt-sub"><td><div class="gn">Design System Tokens</div></td>
+            <td class="gbc"><div class="gbar gb-fw" style="width:100%">FE+App: 7</div></td><td class="gbc"><div class="gbar gb-fw" style="width:55%">FE: 2</div></td>
+            <td class="ge"></td><td class="ge"></td><td class="ge"></td><td class="ge"></td></tr>
+          <tr class="gr gt-sub"><td><div class="gn">iOS Navigation Overhaul</div></td>
+            <td class="ge"></td><td class="gbc"><div class="gbar gb-fw" style="width:100%">App: 5 + QA: 4</div></td>
+            <td class="gbc"><div class="gbar gb-qa" style="width:70%">QA: 3</div></td><td class="ge"></td><td class="ge"></td><td class="ge"></td></tr>
+          <tr style="height:6px"><td colspan="7" style="border:none;background:var(--bg-s)"></td></tr>
+          <tr class="gr gpr"><td><div class="gn"><span class="badge p1" style="flex-shrink:0">P1</span>Backend Refactor<span class="push-tag" style="margin-left:6px">pushed →W4</span><span class="st s-td" style="margin-left:auto;font-size:10px"><span class="sdot"></span>To Do</span></div></td>
+            <td class="ge hatch"></td><td class="ge hatch"></td><td class="ge hatch"></td>
+            <td class="gbc"><div class="gbar gb-all" style="width:100%">18 md</div></td><td class="gbc"><div class="gbar gb-all" style="width:60%"></div></td><td class="ge"></td></tr>
+          <tr class="gr gt-sub"><td><div class="gn">API Gateway Migration</div></td>
+            <td class="ge hatch"></td><td class="ge hatch"></td><td class="ge hatch"></td>
+            <td class="gbc"><div class="gbar gb-be" style="width:100%">BE: 5</div></td><td class="ge"></td><td class="ge"></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <span style="font-family:var(--fm);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--fg4)">Legend</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-family:var(--fm);font-size:11px;color:var(--be-t)"><span style="width:12px;height:12px;border-radius:3px;background:var(--be-bg);border:1px solid var(--be-b)"></span>BE</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-family:var(--fm);font-size:11px;color:var(--few-t)"><span style="width:12px;height:12px;border-radius:3px;background:var(--few-bg);border:1px solid var(--few-b)"></span>FE Web</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-family:var(--fm);font-size:11px;color:var(--fea-t)"><span style="width:12px;height:12px;border-radius:3px;background:var(--fea-bg);border:1px solid var(--fea-b)"></span>FE Android</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-family:var(--fm);font-size:11px;color:var(--fei-t)"><span style="width:12px;height:12px;border-radius:3px;background:var(--fei-bg);border:1px solid var(--fei-b)"></span>FE iOS</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-family:var(--fm);font-size:11px;color:var(--qa-t)"><span style="width:12px;height:12px;border-radius:3px;background:var(--qa-bg);border:1px solid var(--qa-b)"></span>QA</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-family:var(--fm);font-size:11px;color:var(--fg3)"><span style="width:24px;height:12px;border-radius:3px;background:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(0,0,0,.05) 4px,rgba(0,0,0,.05) 8px)"></span>Blocked (priority cascade)</span>
+      </div>
+    </div>
+
+    <!-- ━━ ARCHIVE VIEW ━━ -->
+    <div class="arch-view" id="arch-view">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span style="font-family:var(--fm);font-size:11px;color:var(--fg4);text-transform:uppercase;letter-spacing:.06em">2 archived · Done or Cancelled</span>
+        <span style="font-family:var(--fm);font-size:11px;color:var(--fg4)">Mandays excluded from capacity calculations</span>
+      </div>
+      <div class="arch-row">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px">
+            <span class="arch-name">User Auth Revamp</span>
+            <span class="st s-dn" style="font-size:10px"><span class="sdot"></span>Done</span>
+            <span class="badge p2">P2</span>
+          </div>
+          <div class="arch-meta">
+            <span>Completed Jun 1, 2025</span><span>·</span>
+            <span>28 mandays total</span><span>·</span>
+            <span>4 tasks</span><span>·</span>
+            <span>Last updated: Jordan K.</span>
+          </div>
+        </div>
+        <button class="restore-btn" onclick="restoreProject(this)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          Restore to active
+        </button>
+      </div>
+      <div class="arch-row">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px">
+            <span class="arch-name">Legacy Dashboard Migration</span>
+            <span class="st s-cx" style="font-size:10px"><span class="sdot"></span>Cancelled</span>
+            <span class="badge p3">P3</span>
+          </div>
+          <div class="arch-meta">
+            <span>Cancelled May 20, 2025</span><span>·</span>
+            <span>6 mandays used</span><span>·</span>
+            <span>2 tasks</span><span>·</span>
+            <span style="color:var(--dan-t)">Excluded from calculations</span>
+          </div>
+        </div>
+        <button class="restore-btn" onclick="restoreProject(this)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          Restore to active
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /pb -->
+
+  <div class="stbar">
+    <span><span class="st-dot"></span>Auto-saved</span>
+    <span>3 active projects · <strong>74 mandays</strong> allocated</span>
+    <span>Est. completion: <strong>Jul 11, 2025</strong></span>
+    <span style="margin-left:auto">Last update: <strong>Jordan K.</strong> · Today 10:32 AM</span>
+  </div>
+</div><!-- /main -->
+</div><!-- /app -->
+</div><!-- /wrap -->
+
+<script>
+// ── Inject inline status badges ──
+function mkStatus(cls, label) {
+  return `<span class="st ${cls}" onclick="openStatus(this,event)"><span class="sdot"></span>${label}</span>`;
+}
+
+const STATUS_MAP = {
+  'is-p1': ['s-ip', 'In Progress'],
+  'is-t1': ['s-ip','In Progress'],
+  'is-t2': ['s-ip','In Progress'],
+  'is-p2': ['s-td','To Do'],
+  'is-t3': ['s-td','To Do'],
+  'is-t4': ['s-td','To Do'],
+  'is-p3': ['s-td','To Do'],
+  'is-t5': ['s-td','To Do'],
+};
+
+Object.entries(STATUS_MAP).forEach(([id, [cls, lbl]]) => {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = mkStatus(cls, lbl);
+});
+// Remove legacy hidden status cells
+document.querySelectorAll('td.c-stat.sc').forEach(el => el.remove());
+
+// ── View switching ──
+function switchView(v) {
+  document.getElementById('grid-view').classList.toggle('off', v !== 'grid');
+  document.getElementById('tl-view').classList.toggle('on', v === 'tl');
+  document.getElementById('arch-view').classList.toggle('on', v === 'arch');
+  document.getElementById('toolbar-bar').style.display = v === 'arch' ? 'none' : '';
+  ['g','t','a'].forEach(k => {
+    document.getElementById('v'+k).classList.toggle('on', k === v[0]);
+    document.getElementById('mb-'+k).classList.toggle('on', k === v[0]);
+  });
+}
+
+// ── History filter ──
+function filterHist(proj) {
+  document.querySelectorAll('.hp-e').forEach(e => {
+    e.style.display = (proj === 'all' || e.dataset.proj === proj) ? '' : 'none';
+  });
+}
+function toggleHist() { document.getElementById('hist-panel').classList.toggle('open'); }
+
+// ── Status dropdown — portal approach (works inside overflow:auto) ──
+const portal = document.getElementById('status-portal');
+let activeBadge = null;
+
+function openStatus(badge, e) {
+  if (e) e.stopPropagation();
+  if (activeBadge === badge && portal.classList.contains('open')) {
+    closeStatusPortal(); return;
+  }
+  activeBadge = badge;
+  const rect = badge.getBoundingClientRect();
+  portal.style.top  = (rect.bottom + 4) + 'px';
+  portal.style.left = rect.left + 'px';
+  portal.classList.add('open');
+}
+
+function closeStatusPortal() {
+  portal.classList.remove('open');
+  activeBadge = null;
+}
+
+portal.querySelectorAll('.sdrop-item').forEach(item => {
+  item.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!activeBadge) return;
+    const cls   = item.dataset.cls;
+    const label = item.querySelector('.sdot').nextSibling.textContent.trim();
+    ['s-ip','s-td','s-dn','s-rl','s-cx'].forEach(c => activeBadge.classList.remove(c));
+    activeBadge.classList.add(cls);
+    activeBadge.lastChild.textContent = label;
+    if (cls === 's-dn' || cls === 's-cx') showToast(`Marked as ${label} — move to Archive?`, true);
+    closeStatusPortal();
+  });
+});
+
+document.addEventListener('click', closeStatusPortal);
+
+function closeAllDropdowns() { closeStatusPortal(); }
+
+// ── Bulk select ──
+let selectedRows = new Set();
+
+document.querySelectorAll('.cbc input').forEach(cb => {
+  cb.addEventListener('change', function() {
+    const row = this.closest('tr');
+    if (this.checked) {
+      row.classList.add('row-sel');
+      selectedRows.add(row);
+      // If project row, also select its tasks
+      if (row.dataset.type === 'project') {
+        document.querySelectorAll(`[data-parent="${row.dataset.id}"]`).forEach(r => {
+          r.classList.add('row-sel');
+          r.querySelector('.cbc input').checked = true;
+          selectedRows.add(r);
+        });
+      }
+    } else {
+      row.classList.remove('row-sel');
+      selectedRows.delete(row);
+    }
+    updateBulkBar();
+  });
+});
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-bar');
+  const ct  = document.getElementById('bulk-count');
+  const n = selectedRows.size;
+  ct.textContent = n + ' selected';
+  bar.classList.toggle('show', n > 0);
+}
+
+function clearSelection() {
+  selectedRows.forEach(r => {
+    r.classList.remove('row-sel');
+    r.querySelector('.cbc input').checked = false;
+  });
+  selectedRows.clear();
+  updateBulkBar();
+}
+
+function bulkArchive() {
+  const names = [];
+  selectedRows.forEach(r => {
+    const n = r.querySelector('.fname');
+    if (n) names.push(n.textContent);
+    r.style.transition = 'all 180ms';
+    r.style.opacity = '0';
+    setTimeout(() => r.remove(), 180);
+  });
+  selectedRows.clear();
+  updateBulkBar();
+  showToast(`${names.length} item${names.length>1?'s':''} archived`);
+}
+
+// ── Drag & Drop — flat list ──
+let dragSrc = null;
+
+function initDrag(row) {
+  row.addEventListener('dragstart', e => {
+    dragSrc = row;
+    setTimeout(() => {
+      row.classList.add('dragging');
+      if (row.dataset.type === 'project') {
+        document.querySelectorAll(`[data-parent="${row.dataset.id}"]`)
+          .forEach(r => r.classList.add('dragging'));
+      }
+    }, 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  row.addEventListener('dragend', () => {
+    document.querySelectorAll('.dragging').forEach(r => r.classList.remove('dragging'));
+    document.querySelectorAll('.drop-before').forEach(r => r.classList.remove('drop-before'));
+    updatePriorityBadges();
+    dragSrc = null;
+  });
+
+  row.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragSrc || dragSrc === row) return;
+    document.querySelectorAll('.drop-before').forEach(r => r.classList.remove('drop-before'));
+    row.classList.add('drop-before');
+  });
+
+  row.addEventListener('drop', e => {
+    e.preventDefault();
+    if (!dragSrc || dragSrc === row) return;
+    const tbody = document.getElementById('task-body');
+
+    if (dragSrc.dataset.type === 'project') {
+      // Move project + its tasks as a block before the target project
+      const srcId = dragSrc.dataset.id;
+      const srcRows = [dragSrc, ...Array.from(tbody.querySelectorAll(`[data-parent="${srcId}"]`))];
+      // Find the nearest project row at or above the drop target
+      let anchor = row;
+      while (anchor && anchor.dataset.type !== 'project') anchor = anchor.previousElementSibling;
+      const insertBefore = anchor && anchor !== dragSrc ? anchor : row;
+      srcRows.forEach(r => tbody.insertBefore(r, insertBefore));
+    } else {
+      // Task: insert before drop target
+      tbody.insertBefore(dragSrc, row);
+      // Re-assign parent to nearest project above
+      let prev = dragSrc.previousElementSibling;
+      while (prev && prev.dataset.type !== 'project') prev = prev.previousElementSibling;
+      if (prev) dragSrc.dataset.parent = prev.dataset.id;
+    }
+    row.classList.remove('drop-before');
+  });
+}
+
+document.querySelectorAll('[draggable="true"]').forEach(initDrag);
+
+function updatePriorityBadges() {
+  const tbody = document.getElementById('task-body');
+  const projs = Array.from(tbody.querySelectorAll('[data-type="project"]'));
+  const cls = ['p1','p2','p3'], lbl = ['P1','P2','P3'];
+  projs.forEach((row, i) => {
+    const c = cls[i]||'p3', l = lbl[i]||'P'+(i+1);
+    row.querySelectorAll('.badge').forEach(b => { b.className='badge '+c; b.textContent=l; });
+    document.querySelectorAll(`[data-parent="${row.dataset.id}"] .badge`)
+      .forEach(b => { b.className='badge '+c; b.textContent=l; });
+  });
+}
+
+// ── Restore archive ──
+function restoreProject(btn) {
+  const row = btn.closest('.arch-row');
+  const name = row.querySelector('.arch-name').textContent;
+  row.style.transition = 'all 200ms';
+  row.style.opacity = '0';
+  row.style.transform = 'translateX(20px)';
+  setTimeout(() => {
+    row.remove();
+    if (!document.querySelectorAll('.arch-row').length) {
+      const d = document.createElement('div');
+      d.className = 'arch-empty';
+      d.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg><span>No archived projects</span>';
+      document.getElementById('arch-view').appendChild(d);
+    }
+    showToast(`"${name}" restored to active grid`);
+  }, 200);
+}
+
+function showToast(msg, withAction) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:var(--s1);border:1px solid var(--b-str);box-shadow:var(--sh-lg);border-radius:var(--r-md);padding:10px 14px;font-size:13px;font-weight:500;color:var(--fg1);z-index:999;display:flex;align-items:center;gap:10px;transition:all 300ms;max-width:320px';
+  t.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="flex:1">${msg}</span>`;
+  if (withAction) t.innerHTML += `<button style="padding:4px 10px;border-radius:var(--r-sm);background:var(--ac-m);border:1px solid var(--ac-b);color:var(--ac-t);font-family:var(--fm);font-size:11px;cursor:pointer" onclick="switchView('arch');this.closest('div').remove()">Archive</button>`;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transform='translateY(8px)'; }, withAction ? 4000 : 2200);
+  setTimeout(() => t.remove(), withAction ? 4300 : 2500);
+}
+</script>
+</body>
+</html>

@@ -11,6 +11,15 @@ export interface Tool {
   runs?: string;
 }
 
+export interface PlannerTool {
+  id: string;
+  name: string;
+  icon: string;
+  status: ToolStatus;
+  blurb: string;
+  href?: string;
+}
+
 export const TOOLS: Tool[] = [
   {
     id: "html-downloader",
@@ -97,6 +106,17 @@ export const ASSIST: Tool[] = [
     status: "ai",
     blurb: "Suggest clear names for variables and functions.",
     tag: "AI feature",
+  },
+];
+
+export const PLANNER: PlannerTool[] = [
+  {
+    id: "project-timeline-capacity",
+    name: "Project timeline & capacity",
+    icon: "LayoutGrid",
+    status: "active",
+    blurb: "Plan project timelines, allocate mandays per role, and manage team capacity across weeks.",
+    href: "/tools/project-planner",
   },
 ];
 

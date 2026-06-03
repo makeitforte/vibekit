@@ -4,15 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Code2, Braces, Regex, Palette, GitCompare, Binary, FileDown, FolderDown,
-  GitCommitHorizontal, Sparkles, Wand2, Search,
+  GitCommitHorizontal, Sparkles, Wand2, Search, LayoutGrid,
 } from "lucide-react";
 import { ProfileSwitcher } from "./profile-switcher";
-import { TOOLS, ASSIST } from "@/data/tools";
+import { TOOLS, ASSIST, PLANNER } from "@/data/tools";
 import { cn } from "@/lib/cn";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Code2, Braces, Regex, Palette, GitCompare, Binary, FileDown, FolderDown,
-  GitCommitHorizontal, Sparkles, Wand2,
+  GitCommitHorizontal, Sparkles, Wand2, LayoutGrid,
 };
 
 export interface SidebarProps {
@@ -65,6 +65,28 @@ export function Sidebar({ onOpenPalette }: SidebarProps) {
                 disabled={!isActive}
                 href={isActive ? tool.href : undefined}
                 tag={!isActive ? "soon" : undefined}
+              />
+            );
+          })}
+        </nav>
+
+        {/* Project planner section */}
+        <div className="nav-section-label" style={{ marginTop: 8 }}>
+          <span>Project planner</span>
+          <span className="ml-auto nav-tag ai" style={{ fontSize: 9 }}>new</span>
+        </div>
+        <nav className="nav">
+          {PLANNER.map((tool) => {
+            const Icon = ICON_MAP[tool.icon];
+            const isCurrent = pathname === tool.href;
+            return (
+              <NavItem
+                key={tool.id}
+                label={tool.name}
+                icon={Icon}
+                active={isCurrent}
+                disabled={tool.status !== "active"}
+                href={tool.status === "active" ? tool.href : undefined}
               />
             );
           })}
