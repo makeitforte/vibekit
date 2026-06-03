@@ -12,7 +12,7 @@ import {
   fetchRoles, seedDefaultRoles,
   fetchProjects, createProject, updateProject, reorderProjects, archiveProject,
   fetchTasks, createTask, updateTask, reorderTasks,
-  fetchWeeklyEfforts, upsertEffort, upsertManyEfforts, buildEffortMap,
+  fetchWeeklyEfforts, upsertEffort, buildEffortMap,
   fetchResourceCapacity, upsertCapacity, buildCapacityMap,
   fetchHistory, addHistory, type HistoryEntry,
 } from "./queries";
@@ -341,7 +341,6 @@ export function PlannerShell() {
     const activeTasks = state.tasks.filter(t =>
       activeProjects.some(p => p.id === t.project_id) && !t.is_archived
     );
-    // Ordered by priority_order (top = highest priority = protected)
     const orderedTaskIds = [...activeTasks]
       .sort((a, b) => a.priority_order - b.priority_order)
       .map(t => t.id);
@@ -356,44 +355,38 @@ export function PlannerShell() {
 
     if (changes.length === 0) return;
 
-    // Optimistic update
-    dispatch({ type: "SET_EFFORTS", efforts: [] }); // will be overwritten below
-    // Build flat list of all cells that changed for DB upsert
-    const cellsToUpdate: { task_id: string; role_id: string; week_start: string; mandays: number }[] = [];
+    // Build deduplicated cell list — Map ensures last value wins (correct for accumulated toWeek)
+    const cellMap = new Map<string, { taskId: string; roleId: string; weekStart: string; mandays: number }>();
     for (const c of changes) {
-      // Push the reduced/zeroed source cell
-      cellsToUpdate.push({ task_id: c.taskId, role_id: c.roleId, week_start: c.fromWeek, mandays: newEffortMap[c.taskId]?.[c.roleId]?.[c.fromWeek] ?? 0 });
-      // Push the increased destination cell
-      cellsToUpdate.push({ task_id: c.taskId, role_id: c.roleId, week_start: c.toWeek, mandays: newEffortMap[c.taskId]?.[c.roleId]?.[c.toWeek] ?? 0 });
+      const fromKey = `${c.taskId}|${c.roleId}|${c.fromWeek}`;
+      const toKey   = `${c.taskId}|${c.roleId}|${c.toWeek}`;
+      cellMap.set(fromKey, {
+        taskId: c.taskId, roleId: c.roleId, weekStart: c.fromWeek,
+        mandays: newEffortMap[c.taskId]?.[c.roleId]?.[c.fromWeek] ?? 0,
+      });
+      cellMap.set(toKey, {
+        taskId: c.taskId, roleId: c.roleId, weekStart: c.toWeek,
+        mandays: newEffortMap[c.taskId]?.[c.roleId]?.[c.toWeek] ?? 0,
+      });
     }
 
-    // Deduplicate by task+role+week
-    const seen = new Set<string>();
-    const deduped = cellsToUpdate.filter(c => {
-      const key = `${c.task_id}|${c.role_id}|${c.week_start}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    try {
-      await upsertManyEfforts(userId, deduped);
-    } catch (e) {
-      console.error("cascade upsert failed", e);
+    // Persist each cell using the proven individual upsertEffort (handles zero→delete)
+    for (const cell of cellMap.values()) {
+      await upsertEffort(cell.taskId, cell.roleId, userId, cell.weekStart, cell.mandays);
     }
 
-    // Reload fresh from DB
+    // Single reload — no intermediate clear to avoid flicker
     const efforts = await fetchWeeklyEfforts(userId);
     dispatch({ type: "SET_EFFORTS", efforts });
 
-    // Log cascade history
+    // History logging
     const roleMap = Object.fromEntries(state.roles.map(r => [r.id, r.name]));
     const taskMap = Object.fromEntries(state.tasks.map(t => [t.id, t.name]));
     for (const c of changes) {
       await addHistory(userId, {
         task_id: c.taskId,
         change_type: "cascade_push",
-        field_name: `${roleMap[c.roleId] ?? c.roleId}`,
+        field_name: roleMap[c.roleId] ?? c.roleId,
         old_value: `${c.fromWeek} · ${c.amount} md`,
         new_value: c.toWeek,
         notes: taskMap[c.taskId],
@@ -401,7 +394,7 @@ export function PlannerShell() {
     }
     const history = await fetchHistory(userId);
     dispatch({ type: "SET_HISTORY", history });
-  }, [userId, state.tasks, state.roles, state.effortMap, state.capacityMap, activeProjects, weeks, state.tasks]);
+  }, [userId, state.tasks, state.roles, state.effortMap, state.capacityMap, activeProjects, weeks]);
 
   const handleBulkArchive = useCallback(async () => {
     if (!userId) return;
