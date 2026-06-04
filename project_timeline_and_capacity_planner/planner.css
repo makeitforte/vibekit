@@ -239,9 +239,11 @@
   color: var(--fg-2);
 }
 .sum-val-req { color: var(--fg-1); }
-.sum-val.buf-pos { color: var(--accent-text); }
-.sum-val.buf-neg { color: var(--danger-text); font-weight: 700; }
-.buf-neg-bg { background: rgba(226, 67, 75, 0.06) !important; }
+.sum-val.buf-pos  { color: var(--accent-text); }
+.sum-val.buf-warn { color: var(--warning-text); font-weight: 600; }
+.buf-warn         { background: rgba(183, 134, 11, 0.06) !important; }
+.sum-val.buf-neg  { color: var(--danger-text); font-weight: 700; }
+.buf-neg-bg       { background: rgba(226, 67, 75, 0.06) !important; }
 .cap-input {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -274,6 +276,32 @@
   border-bottom: 1px solid var(--border-subtle);
   height: 34px;
 }
+
+/* Sticky cells must be opaque to cover scrolled non-sticky content.
+   z-index 12 puts them above non-sticky cells during horizontal scroll. */
+.row-task .col-cb,   .row-task .col-drag,
+.row-task .col-feat, .row-task .col-pri,
+.row-task .col-eta,  .row-task .col-tot  { background: var(--surface-1) !important; }
+
+.row-sum .col-cb,    .row-sum .col-drag,
+.row-sum .col-feat,  .row-sum .col-pri,
+.row-sum .col-eta,   .row-sum .col-tot   { background: var(--surface-1) !important; }
+
+.row-sum-req .col-cb,   .row-sum-req .col-drag,
+.row-sum-req .col-feat, .row-sum-req .col-pri,
+.row-sum-req .col-eta,  .row-sum-req .col-tot  { background: rgba(22,162,104,.04) !important; }
+
+.row-sum-last .col-cb,   .row-sum-last .col-drag,
+.row-sum-last .col-feat, .row-sum-last .col-pri,
+.row-sum-last .col-eta,  .row-sum-last .col-tot { background: rgba(226,67,75,.04) !important; }
+
+.row-task:hover .col-cb,   .row-task:hover .col-drag,
+.row-task:hover .col-feat, .row-task:hover .col-pri,
+.row-task:hover .col-eta,  .row-task:hover .col-tot { background: var(--surface-3) !important; }
+
+.row-selected .col-cb,   .row-selected .col-drag,
+.row-selected .col-feat, .row-selected .col-pri,
+.row-selected .col-eta,  .row-selected .col-tot  { background: var(--accent-muted) !important; }
 
 /* Hover */
 .row-project:hover td,

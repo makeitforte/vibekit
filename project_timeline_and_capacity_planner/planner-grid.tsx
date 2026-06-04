@@ -398,20 +398,24 @@ export function PlannerGrid({
 
   const allTaskIds = sortedTasks.map(t => t.id);
 
-  // ── Detect negative buffers (cascade needed) ──────────────────────────────
-  // Only flag weeks where capacity is explicitly set — weeks with capacity = 0
-  // (not yet configured) are ignored to avoid false positives.
-  const negativeBufferCount = weeks.reduce((count, w) =>
+  // ── Detect threshold breaches (cascade needed) ────────────────────────────
+  // Show cascade banner when buffer drops below the configured min threshold.
+  // Weeks without explicitly set capacity are ignored.
+  const thresholdBreachCount = weeks.reduce((count, w) =>
     count + roles.filter(role => {
       const s = computeWeekRoleSummary(role.id, w, capacityMap, effortMap, allTaskIds);
-      return s.capacity > 0 && s.buffer < 0;
+      return s.capacity > 0 && s.buffer < s.bufferThreshold;
     }).length, 0);
 
   // ── Empty state ────────────────────────────────────────────────────────────
   if (projects.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-        <GridToolbar dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles} />
+        <GridToolbar
+        dateRange={dateRange} onDateRangeChange={onDateRangeChange}
+        roles={roles} projects={sortedProjects}
+        onAddTask={onAddTask} onAddProject={() => {}}
+      />
         <div className="planner-empty" style={{ flex: 1 }}>
           <div className="planner-empty-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -426,10 +430,14 @@ export function PlannerGrid({
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Toolbar */}
-      <GridToolbar dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles} />
+      <GridToolbar
+        dateRange={dateRange} onDateRangeChange={onDateRangeChange}
+        roles={roles} projects={sortedProjects}
+        onAddTask={onAddTask} onAddProject={() => {}}
+      />
 
-      {/* Cascade banner */}
-      {negativeBufferCount > 0 && (
+      {/* Cascade banner — shows when any role/week is below its min buffer threshold */}
+      {thresholdBreachCount > 0 && (
         <div style={{
           padding: "7px 28px",
           background: "rgba(226,67,75,.06)",
@@ -441,7 +449,7 @@ export function PlannerGrid({
         }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger-text)" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--danger-text)", fontWeight: 500 }}>
-            {negativeBufferCount} role{negativeBufferCount > 1 ? "s" : ""} over capacity
+            {thresholdBreachCount} role{thresholdBreachCount > 1 ? "s" : ""} below min buffer threshold
           </span>
           <button
             type="button"
@@ -819,8 +827,9 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         {weeks.map((w, wi) =>
           roles.map((role, ri) => {
             const s = computeWeekRoleSummary(role.id, w, capacityMap, effortMap, allTaskIds);
-            const isOverCapacity = s.capacity > 0 && s.buffer < 0;
-            const cls = isOverCapacity ? "buf-neg buf-neg-bg" : "buf-pos";
+            const isBelowThreshold = s.capacity > 0 && s.buffer < s.bufferThreshold;
+            const isNegative       = s.capacity > 0 && s.buffer < 0;
+            const cls = isNegative ? "buf-neg buf-neg-bg" : isBelowThreshold ? "buf-warn" : "buf-pos";
             return (
               <td key={`${w}-${role.id}`} className={cn("sum-val", cls, ri === 0 && "wk-start")}>
                 {s.buffer > 0 ? `+${s.buffer}` : s.buffer < 0 ? s.buffer : "—"}
@@ -859,11 +868,15 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
 
 // ── Grid Toolbar ──────────────────────────────────────────────────────────────
 
-function GridToolbar({ dateRange, onDateRangeChange, roles }: {
+function GridToolbar({ dateRange, onDateRangeChange, roles, projects, onAddTask, onAddProject }: {
   dateRange: PlannerDateRange;
   onDateRangeChange: (r: PlannerDateRange) => void;
   roles: Role[];
+  projects: Project[];
+  onAddTask: (projectId: string) => void;
+  onAddProject: () => void;
 }) {
+  const [taskDropOpen, setTaskDropOpen] = useState(false);
   return (
     <div className="planner-toolbar">
       <span className="toolbar-label">Filter</span>
@@ -885,6 +898,44 @@ function GridToolbar({ dateRange, onDateRangeChange, roles }: {
       <button className="filter-chip" style={{ borderStyle: "dashed" }}>
         <Plus size={10} /> Add role
       </button>
+
+      <div className="toolbar-sep" />
+      {/* Add task — project selector dropdown */}
+      <div style={{ position: "relative" }}>
+        <button
+          className="filter-chip"
+          style={{ borderStyle: "dashed", display: "flex", alignItems: "center", gap: 4 }}
+          onClick={() => setTaskDropOpen(v => !v)}
+        >
+          <Plus size={10} /> Add task
+        </button>
+        {taskDropOpen && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 500,
+            background: "var(--surface-1)", border: "1px solid var(--border-strong)",
+            borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-lg)",
+            padding: 4, minWidth: 180,
+          }}
+            onMouseLeave={() => setTaskDropOpen(false)}
+          >
+            <div style={{ padding: "5px 10px 3px", fontFamily: "var(--font-mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--fg-4)", borderBottom: "1px solid var(--border-subtle)", marginBottom: 4 }}>
+              Add task to…
+            </div>
+            {projects.length === 0 ? (
+              <div style={{ padding: "6px 10px", fontSize: 12, color: "var(--fg-4)" }}>No projects yet</div>
+            ) : projects.map(p => (
+              <div key={p.id}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: 13, color: "var(--fg-2)", transition: "background 80ms" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-3)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "")}
+                onClick={() => { onAddTask(p.id); setTaskDropOpen(false); }}
+              >
+                {p.name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="toolbar-right">
         <span className="toolbar-label">Start</span>
