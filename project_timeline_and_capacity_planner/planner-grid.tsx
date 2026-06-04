@@ -323,12 +323,15 @@ export function PlannerGrid({
   onArchiveProject,
 }: Props) {
   const [statusTarget,   setStatusTarget]   = useState<{ rect: DOMRect; id: string; type: "project" | "task" } | null>(null);
-  const [priorityTarget, setPriorityTarget] = useState<{ rect: DOMRect; proj: Project } | null>(null);
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editingName,    setEditingName]    = useState("");
   const [ctxMenu,        setCtxMenu]        = useState<CtxState | null>(null);
-  const [featColWidth,   setFeatColWidth]   = useState(200);
+  const [featColWidth,   setFeatColWidth]   = useState(240);
   const resizeDrag = useRef<{ startX: number; startW: number } | null>(null);
+  // Computed offsets for dependent sticky cols
+  const priLeft = 64 + featColWidth;
+  const etaLeft = priLeft + 52;
+  const totLeft = etaLeft + 76;
 
   const openCtx = (e: React.MouseEvent, id: string, type: "project" | "task", projectId: string, isArchived: boolean) => {
     e.preventDefault();
@@ -363,77 +366,35 @@ export function PlannerGrid({
     const src = dragSrc.current;
     if (!src || src.id === targetId) return;
 
-    const sortedProjects = [...projects].sort((a, b) => a.priority_order - b.priority_order);
-    const sortedTasks    = [...tasks].sort((a, b) => a.priority_order - b.priority_order);
-
-    if (src.type === "project") {
-      // Move project block before target project
-      const srcIdx = sortedProjects.findIndex(p => p.id === src.id);
-      const tgtProj = sortedProjects.find(p => p.id === targetId) || sortedTasks.find(t => t.id === targetId) && sortedProjects.find(p => p.id === sortedTasks.find(t => t.id === targetId)?.project_id);
-      if (!tgtProj) return;
-      const tgtIdx = sortedProjects.findIndex(p => p.id === tgtProj.id);
-      const reordered = [...sortedProjects];
-      const [moved] = reordered.splice(srcIdx, 1);
-      reordered.splice(tgtIdx, 0, moved);
-      onReorder(
-        reordered.map(p => p.id),
-        sortedTasks.map(t => t.id),
-        reordered.map((p, i) => ({
-          project_id: p.id,
-          change_type: "priority_change" as const,
-          old_value: `P${sortedProjects.findIndex(sp => sp.id === p.id) + 1}`,
-          new_value: `P${i + 1}`,
-          notes: p.name,
-        })).filter((e, i) => e.old_value !== e.new_value),
-      );
-    } else {
-      // Move task before target row
-      const srcTask = sortedTasks.find(t => t.id === src.id);
-      if (!srcTask) return;
-      const srcIdx = sortedTasks.findIndex(t => t.id === src.id);
-      let tgtIdx = sortedTasks.findIndex(t => t.id === targetId);
-      if (tgtIdx < 0) {
-        // Target is a project row — place task at start of that project
-        const tgtProj = sortedProjects.find(p => p.id === targetId);
-        if (!tgtProj) return;
-        tgtIdx = sortedTasks.findIndex(t => t.project_id === tgtProj.id);
-        if (tgtIdx < 0) tgtIdx = sortedTasks.length;
-      }
-      const reordered = [...sortedTasks];
+    // Flat task reorder — freely cross project boundaries
+    const _sortedProjects = [...projects].sort((a, b) => a.priority_order - b.priority_order);
+    const _sortedTasks    = [...tasks].sort((a, b) => a.priority_order - b.priority_order);
+    const srcIdx = _sortedTasks.findIndex(t => t.id === src.id);
+    const tgtIdx = _sortedTasks.findIndex(t => t.id === targetId);
+    if (srcIdx >= 0 && tgtIdx >= 0) {
+      const reordered = [..._sortedTasks];
       const [moved] = reordered.splice(srcIdx, 1);
       reordered.splice(tgtIdx > srcIdx ? tgtIdx - 1 : tgtIdx, 0, moved);
-
-      // Re-assign project_id based on which project is above each task
-      let lastProjId = sortedProjects[0]?.id ?? "";
-      const patchedTasks = reordered.map(t => {
-        if (sortedProjects.some(p => p.id === t.id)) lastProjId = t.id;
-        return { ...t, project_id: lastProjId };
-      });
-
-      onReorder(
-        sortedProjects.map(p => p.id),
-        patchedTasks.map(t => t.id),
-      );
+      onReorder(_sortedProjects.map(p => p.id), reordered.map(t => t.id));
     }
   };
 
-  // ── Flat ordered rows (project header + task rows interleaved) ────────────
+  // ── Flat task list (Option A — no project headers) ──────────────────────
   const sortedProjects = [...projects].sort((a, b) => a.priority_order - b.priority_order);
   const sortedTasks    = [...tasks].sort((a, b) => a.priority_order - b.priority_order);
 
-  // Build flat rows: [project, ...tasks, add_task, project, ...]
-  type Row =
-    | { kind: "project";  data: Project }
-    | { kind: "task";     data: Task }
-    | { kind: "add_task"; projectId: string };
-  const rows: Row[] = [];
-  for (const proj of sortedProjects) {
-    rows.push({ kind: "project", data: proj });
-    for (const task of sortedTasks.filter(t => t.project_id === proj.id)) {
-      rows.push({ kind: "task", data: task });
-    }
-    rows.push({ kind: "add_task", projectId: proj.id });
-  }
+  // Project colour map for badges (consistent across renders)
+  const PROJECT_BADGE_COLORS = [
+    { bg: "rgba(22,162,104,.12)",  text: "#0e7a4e",  border: "rgba(22,162,104,.3)"  },
+    { bg: "rgba(59,130,246,.12)",  text: "#1d4ed8",  border: "rgba(59,130,246,.3)"  },
+    { bg: "rgba(139,92,246,.12)",  text: "#6d28d9",  border: "rgba(139,92,246,.3)"  },
+    { bg: "rgba(183,134,11,.12)",  text: "#876200",  border: "rgba(183,134,11,.3)"  },
+    { bg: "rgba(6,182,212,.12)",   text: "#0e7490",  border: "rgba(6,182,212,.3)"   },
+    { bg: "rgba(236,72,153,.12)",  text: "#be185d",  border: "rgba(236,72,153,.3)"  },
+  ];
+  const projColorMap = Object.fromEntries(
+    sortedProjects.map((p, i) => [p.id, PROJECT_BADGE_COLORS[i % PROJECT_BADGE_COLORS.length]])
+  );
 
   const allTaskIds = sortedTasks.map(t => t.id);
 
@@ -511,14 +472,15 @@ export function PlannerGrid({
 
       {/* Scrollable grid */}
       <div className="grid-view">
-        <table className="planner-table" style={{ "--feat-w": `${featColWidth}px` } as React.CSSProperties}>
+        <table className="planner-table">
           <thead>
             {/* Week headers */}
             <tr className="thead-week">
               <th className="col-cb th-sticky" />
               <th className="col-drag th-sticky" />
-              {/* Resizable Feature/Task column */}
-              <th className="col-feat th-sticky th-col-header" style={{ position: "relative" }}>
+              {/* Resizable Feature/Task column — inline style overrides CSS default width */}
+              <th className="col-feat th-sticky th-col-header"
+                style={{ width: featColWidth, minWidth: featColWidth, position: "sticky", left: 64 }}>
                 Feature / Task
                 {/* Resize handle */}
                 <div
@@ -548,9 +510,9 @@ export function PlannerGrid({
                   <div style={{ width: 2, height: 16, background: "var(--border-strong)", borderRadius: 1, opacity: 0.6 }} />
                 </div>
               </th>
-              <th className="col-pri th-sticky th-col-header center">Pri</th>
-              <th className="col-eta th-sticky th-col-header">ETA</th>
-              <th className="col-tot th-sticky th-col-header center">Total<br /><span style={{ fontSize: 9 }}>effort</span></th>
+              <th className="col-pri th-sticky th-col-header center" style={{ left: priLeft }}>Pri</th>
+              <th className="col-eta th-sticky th-col-header" style={{ left: etaLeft }}>ETA</th>
+              <th className="col-tot th-sticky th-col-header center" style={{ left: totLeft }}>Total<br /><span style={{ fontSize: 9 }}>effort</span></th>
               {weeks.map((w, i) => (
                 <th key={w} colSpan={roles.length} className={cn("th-week-group", i === 0 && "first")}>
                   <span className="th-week-date">{formatWeekRange(w)}</span>
@@ -561,10 +523,10 @@ export function PlannerGrid({
             <tr className="thead-role">
               <th className="col-cb th-sticky" />
               <th className="col-drag th-sticky" />
-              <th className="col-feat th-sticky" />
-              <th className="col-pri th-sticky" />
-              <th className="col-eta th-sticky" />
-              <th className="col-tot th-sticky" />
+              <th className="col-feat th-sticky" style={{ width: featColWidth, minWidth: featColWidth, left: 64 }} />
+              <th className="col-pri th-sticky" style={{ left: priLeft }} />
+              <th className="col-eta th-sticky" style={{ left: etaLeft }} />
+              <th className="col-tot th-sticky" style={{ left: totLeft }} />
               {weeks.map((w, wi) =>
                 roles.map((role, ri) => (
                   <th
@@ -590,161 +552,22 @@ export function PlannerGrid({
               onUpsertCapacity={onUpsertCapacity}
             />
 
-            {/* ── Data rows ── */}
-            {rows.map((row, rowIdx) => {
-              // ── Add task row ──
-              if (row.kind === "add_task") {
-                const colSpan = 6 + weeks.length * roles.length;
-                return (
-                  <tr key={`add-${row.projectId}`}>
-                    <td className="col-cb" />
-                    <td className="col-drag" />
-                    <td
-                      className="col-feat"
-                      colSpan={colSpan - 2}
-                      style={{ padding: "4px 20px" }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onAddTask(row.projectId)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 5,
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          fontFamily: "var(--font-mono)",
-                          fontSize: 11,
-                          color: "var(--fg-4)",
-                          padding: "2px 0",
-                          transition: "color 120ms",
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "var(--accent-text)")}
-                        onMouseLeave={e => (e.currentTarget.style.color = "var(--fg-4)")}
-                      >
-                        <Plus size={12} /> Add task
-                      </button>
-                    </td>
-                  </tr>
-                );
-              }
-
-              const isProject = row.kind === "project";
-              const id = row.data.id;
+            {/* ── Flat task list (Option A) ── */}
+            {sortedTasks.map((task) => {
+              const id           = task.id;
+              const proj         = sortedProjects.find(p => p.id === task.project_id);
+              const projColor    = proj ? projColorMap[proj.id] : { bg: "var(--surface-3)", text: "var(--fg-4)", border: "var(--border-subtle)" };
               const isSelected   = selectedRowIds.has(id);
               const isDragging   = draggingId === id;
               const isDropTarget = dropTargetId === id;
-
-              if (isProject) {
-                const proj = row.data as Project;
-                const projIdx = sortedProjects.indexOf(proj);
-                const totalEffort = sortedTasks
-                  .filter(t => t.project_id === proj.id)
-                  .reduce((s, t) => s + getTaskTotalEffort(t.id, effortMap), 0);
-
-                return (
-                  <tr
-                    key={id}
-                    className={cn("row-project", isSelected && "row-selected", isDragging && "row-dragging", isDropTarget && "row-drop-target")}
-                    draggable
-                    onContextMenu={(e) => openCtx(e, id, "project", id, proj.is_archived)}
-                    onDragStart={() => handleDragStart(id, "project")}
-                    onDragOver={(e) => handleDragOver(e, id)}
-                    onDrop={(e) => handleDrop(e, id)}
-                    onDragEnd={() => { setDropTargetId(null); setDraggingId(null); dragSrc.current = null; }}
-                  >
-                    {/* Checkbox */}
-                    <td className="col-cb cb-cell">
-                      <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(id)} />
-                    </td>
-                    {/* Drag */}
-                    <td className="col-drag drag-handle">⠿</td>
-                    {/* Name + inline status */}
-                    <td className="col-feat">
-                      <div className="feat-cell">
-                        <span className="proj-icon" style={{ cursor: "pointer" }} onClick={() => onRowHistoryClick(proj.id)} title="View history">
-                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2.5">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
-                          </svg>
-                        </span>
-                        {editingId === proj.id ? (
-                          <input
-                            autoFocus
-                            className="feat-name"
-                            style={{ background: "transparent", border: "none", outline: "1px solid var(--accent-border)", borderRadius: 3, padding: "0 2px", fontWeight: 600, fontSize: 12.5, flex: 1, minWidth: 0 }}
-                            value={editingName}
-                            onChange={e => setEditingName(e.target.value)}
-                            onBlur={() => { if (editingName.trim()) onUpdateProject(proj.id, { name: editingName.trim() }); setEditingId(null); }}
-                            onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditingId(null); } }}
-                            onClick={e => e.stopPropagation()}
-                          />
-                        ) : (
-                          <span className="feat-name" onDoubleClick={e => { e.stopPropagation(); setEditingId(proj.id); setEditingName(proj.name); }} title={proj.name}>{proj.name}</span>
-                        )}
-                        <button
-                          className={cn("inline-status", STATUS_CSS[proj.status])}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStatusTarget({ rect: e.currentTarget.getBoundingClientRect(), id, type: "project" });
-                          }}
-                        >
-                          <span className="st-dot" style={{ background: STATUS_DOT_COLOR[proj.status] }} />
-                          {STATUS_LABEL[proj.status]}
-                        </button>
-                      </div>
-                    </td>
-                    {/* Priority — clickable dropdown */}
-                    <td className="col-pri" style={{ padding: "0 6px" }}>
-                      <button
-                        type="button"
-                        className={PRI_CLASS[resolveLabel(proj, projIdx)]}
-                        style={{ border: "none", cursor: "pointer", background: "none", padding: "2px 7px" }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPriorityTarget({ rect: e.currentTarget.getBoundingClientRect(), proj });
-                        }}
-                        title="Click to change priority label"
-                      >
-                        {resolveLabel(proj, projIdx)}
-                      </button>
-                    </td>
-                    {/* ETA */}
-                    <td className="col-eta eta-cell">{proj.eta ? new Date(proj.eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</td>
-                    {/* Total */}
-                    <td className="col-tot total-cell">{totalEffort > 0 ? totalEffort : "—"}</td>
-                    {/* Effort cells (aggregated) */}
-                    {weeks.map((w, wi) =>
-                      roles.map((role, ri) => {
-                        const ecClass = ROLE_EC_CLASS[ri % ROLE_EC_CLASS.length];
-                        const agg = sortedTasks
-                          .filter(t => t.project_id === proj.id)
-                          .reduce((s, t) => s + (effortMap[t.id]?.[role.id]?.[w] ?? 0), 0);
-                        return (
-                          <td key={`${w}-${role.id}`} className={cn("effort-cell", agg > 0 ? ecClass : "", ri === 0 && "wk-start")}
-                            style={{ color: agg > 0 ? undefined : "transparent" }}>
-                            {agg > 0 ? agg : ""}
-                          </td>
-                        );
-                      })
-                    )}
-                  </tr>
-                );
-              }
-
-              // Task row
-              const task = row.data as Task;
-              const taskTotalEffort = getTaskTotalEffort(task.id, effortMap);
+              const totalEffort  = getTaskTotalEffort(task.id, effortMap);
 
               return (
                 <tr
                   key={id}
                   className={cn("row-task", isSelected && "row-selected", isDragging && "row-dragging", isDropTarget && "row-drop-target")}
                   draggable
-                  onContextMenu={(e) => {
-                    const parentProjId = sortedProjects.find(p => p.id === task.project_id)?.id ?? task.project_id;
-                    openCtx(e, id, "task", parentProjId, task.is_archived);
-                  }}
+                  onContextMenu={(e) => openCtx(e, id, "task", task.project_id, task.is_archived)}
                   onDragStart={() => handleDragStart(id, "task")}
                   onDragOver={(e) => handleDragOver(e, id)}
                   onDrop={(e) => handleDrop(e, id)}
@@ -755,12 +578,29 @@ export function PlannerGrid({
                   </td>
                   <td className="col-drag drag-handle">⠿</td>
                   <td className="col-feat">
-                    <div className="feat-cell">
+                    <div className="feat-cell" style={{ gap: 6 }}>
+                      {/* Project badge */}
+                      {proj && (
+                        <span
+                          title={proj.name}
+                          style={{
+                            fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 600,
+                            padding: "1px 6px", borderRadius: "var(--radius-full)",
+                            background: projColor.bg, border: `1px solid ${projColor.border}`,
+                            color: projColor.text, whiteSpace: "nowrap", flexShrink: 0,
+                            maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer",
+                          }}
+                          onClick={() => onRowHistoryClick(proj.id)}
+                        >
+                          {proj.name}
+                        </span>
+                      )}
+                      {/* Task name */}
                       {editingId === task.id ? (
                         <input
                           autoFocus
                           className="feat-name"
-                          style={{ background: "transparent", border: "none", outline: "1px solid var(--accent-border)", borderRadius: 3, padding: "0 2px", fontSize: 12.5, flex: 1, minWidth: 0, color: "var(--fg-2)", paddingLeft: 8 }}
+                          style={{ background: "transparent", border: "none", outline: "1px solid var(--accent-border)", borderRadius: 3, padding: "0 2px", fontSize: 12.5, flex: 1, minWidth: 0, color: "var(--fg-2)" }}
                           value={editingName}
                           onChange={e => setEditingName(e.target.value)}
                           onBlur={() => { if (editingName.trim()) onUpdateTask(task.id, { name: editingName.trim() }); setEditingId(null); }}
@@ -768,41 +608,38 @@ export function PlannerGrid({
                           onClick={e => e.stopPropagation()}
                         />
                       ) : (
-                        <span className="feat-name" onDoubleClick={e => { e.stopPropagation(); setEditingId(task.id); setEditingName(task.name); }} title={task.name}>{task.name}</span>
+                        <span className="feat-name"
+                          onDoubleClick={e => { e.stopPropagation(); setEditingId(task.id); setEditingName(task.name); }}
+                          title={task.name}>
+                          {task.name}
+                        </span>
                       )}
+                      {/* Inline status */}
                       <button
                         className={cn("inline-status", STATUS_CSS[task.status])}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setStatusTarget({ rect: e.currentTarget.getBoundingClientRect(), id, type: "task" });
-                        }}
+                        onClick={e => { e.stopPropagation(); setStatusTarget({ rect: e.currentTarget.getBoundingClientRect(), id, type: "task" }); }}
                       >
                         <span className="st-dot" style={{ background: STATUS_DOT_COLOR[task.status] }} />
                         {STATUS_LABEL[task.status]}
                       </button>
                     </div>
                   </td>
+                  {/* Priority — inherits from project label */}
                   <td className="col-pri" style={{ padding: "0 6px" }}>
-                    {(() => {
-                      const parentProj = sortedProjects.find(p => p.id === task.project_id);
-                      const parentIdx  = parentProj ? sortedProjects.indexOf(parentProj) : 0;
-                      const label      = parentProj ? resolveLabel(parentProj, parentIdx) : "P3";
-                      return <span className={PRI_CLASS[label]} style={{ opacity: 0.55 }}>{label}</span>;
-                    })()}
+                    {proj ? (
+                      <span className={PRI_CLASS[resolveLabel(proj, sortedProjects.indexOf(proj))]} style={{ opacity: 0.6 }}>
+                        {resolveLabel(proj, sortedProjects.indexOf(proj))}
+                      </span>
+                    ) : "—"}
                   </td>
                   <td className="col-eta eta-cell">{task.eta ? new Date(task.eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</td>
-                  <td className="col-tot total-cell">{taskTotalEffort > 0 ? taskTotalEffort : "—"}</td>
-                  {weeks.map((w, wi) =>
+                  <td className="col-tot total-cell">{totalEffort > 0 ? totalEffort : "—"}</td>
+                  {weeks.map((w) =>
                     roles.map((role, ri) => (
-                      <EffortInput
-                        key={`${w}-${role.id}`}
-                        taskId={task.id}
-                        roleId={role.id}
-                        roleIdx={ri}
-                        weekStart={w}
-                        isWeekStart={ri === 0}
-                        effortMap={effortMap}
-                        onBlur={onUpsertEffort}
+                      <EffortInput key={`${w}-${role.id}`}
+                        taskId={task.id} roleId={role.id} roleIdx={ri}
+                        weekStart={w} isWeekStart={ri === 0}
+                        effortMap={effortMap} onBlur={onUpsertEffort}
                       />
                     ))
                   )}
@@ -835,24 +672,6 @@ export function PlannerGrid({
         />
       )}
 
-      {/* Priority portal */}
-      {priorityTarget && (
-        <PriorityPortal
-          rect={priorityTarget.rect}
-          current={resolveLabel(priorityTarget.proj, sortedProjects.indexOf(priorityTarget.proj))}
-          onClose={() => setPriorityTarget(null)}
-          onSelect={(label) => {
-            onUpdateProject(priorityTarget.proj.id, { priority_label: label }, {
-              project_id: priorityTarget.proj.id,
-              change_type: "priority_change",
-              field_name: "priority_label",
-              old_value: resolveLabel(priorityTarget.proj, sortedProjects.indexOf(priorityTarget.proj)),
-              new_value: label,
-              notes: priorityTarget.proj.name,
-            });
-          }}
-        />
-      )}
 
       {/* Status portal */}
       {statusTarget && (

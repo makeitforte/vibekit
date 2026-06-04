@@ -95,7 +95,7 @@ export interface ChangeHistory {
 
 // ── View types ────────────────────────────────────────────────────────────────
 
-export type PlannerView = "grid" | "priority" | "timeline" | "archive";
+export type PlannerView = "grid" | "timeline" | "archive";
 
 export interface PlannerDateRange {
   start: string; // ISO YYYY-MM-DD

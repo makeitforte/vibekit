@@ -143,15 +143,13 @@
   min-width: 100%;
 }
 
-/* Sticky columns — feat width driven by --feat-w CSS var set on the table */
-.planner-table { --feat-w: 200px; }
-
-.col-cb   { width: 36px; min-width: 36px; position: sticky; left: 0px;  z-index: 12; }
-.col-drag { width: 28px; min-width: 28px; position: sticky; left: 36px; z-index: 12; }
-.col-feat { width: var(--feat-w); min-width: var(--feat-w); position: sticky; left: 64px; z-index: 12; }
-.col-pri  { width: 52px; min-width: 52px; position: sticky; left: calc(64px + var(--feat-w)); z-index: 12; }
-.col-eta  { width: 76px; min-width: 76px; position: sticky; left: calc(64px + var(--feat-w) + 52px); z-index: 12; }
-.col-tot  { width: 64px; min-width: 64px; position: sticky; left: calc(64px + var(--feat-w) + 128px); z-index: 12; }
+/* Sticky columns — cb=36, drag=28, feat=240 (resizable via inline style on th), pri=52, eta=76, tot=64 */
+.col-cb   { width: 36px;  min-width: 36px;  position: sticky; left: 0px;   z-index: 12; }
+.col-drag { width: 28px;  min-width: 28px;  position: sticky; left: 36px;  z-index: 12; }
+.col-feat { width: 240px; min-width: 240px; position: sticky; left: 64px;  z-index: 12; }
+.col-pri  { width: 52px;  min-width: 52px;  position: sticky; left: 304px; z-index: 12; }
+.col-eta  { width: 76px;  min-width: 76px;  position: sticky; left: 356px; z-index: 12; }
+.col-tot  { width: 64px;  min-width: 64px;  position: sticky; left: 432px; z-index: 12; }
 .col-tot::after {
   content: '';
   position: absolute;

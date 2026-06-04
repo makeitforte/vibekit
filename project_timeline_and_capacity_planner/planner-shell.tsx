@@ -18,7 +18,6 @@ import {
 } from "./queries";
 import { getWeekStarts, toWeekStart, formatWeekRange, runCascadeRecalculate } from "./utils";
 import { PlannerGrid } from "./planner-grid";
-import { PlannerPriorityView } from "./planner-priority-view";
 import { exportToXlsx } from "./export-xlsx";
 import { PlannerTimeline } from "./planner-timeline";
 import { PlannerArchive } from "./planner-archive";
@@ -474,10 +473,9 @@ export function PlannerShell() {
         <div className="planner-header-actions">
           <SegmentedControl
             options={[
-              { id: "grid",     label: "Grid",      icon: <LayoutGrid size={11} /> },
-              { id: "priority", label: "Priority",  icon: <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
-              { id: "timeline", label: "Timeline",  icon: <GitBranch  size={11} /> },
-              { id: "archive",  label: "Archive",   icon: <Archive    size={11} />, badge: archivedProjects.length || undefined },
+              { id: "grid",     label: "Grid",     icon: <LayoutGrid size={11} /> },
+              { id: "timeline", label: "Timeline", icon: <GitBranch  size={11} /> },
+              { id: "archive",  label: "Archive",  icon: <Archive    size={11} />, badge: archivedProjects.length || undefined },
             ]}
             value={state.view}
             onChange={(v) => dispatch({ type: "SET_VIEW", view: v as PlannerView })}
@@ -532,25 +530,6 @@ export function PlannerShell() {
             onDeleteProject={handleDeleteProject}
             onDeleteTask={handleDeleteTask}
             onRunCascade={handleRunCascade}
-            onRowHistoryClick={handleRowHistoryClick}
-          />
-        ) : state.view === "priority" ? (
-          <PlannerPriorityView
-            roles={state.roles}
-            projects={activeProjects}
-            tasks={state.tasks.filter(t => activeProjects.some(p => p.id === t.project_id))}
-            effortMap={state.effortMap}
-            capacityMap={state.capacityMap}
-            dateRange={state.dateRange}
-            weeks={weeks}
-            selectedRowIds={state.selectedRowIds}
-            onToggleSelect={(id) => dispatch({ type: "TOGGLE_ROW_SELECT", id })}
-            onReorder={handleReorder}
-            onUpdateTask={handleUpdateTask}
-            onUpsertEffort={handleUpsertEffort}
-            onUpsertCapacity={handleUpsertCapacity}
-            onDateRangeChange={(range) => dispatch({ type: "SET_DATE_RANGE", range })}
-            onDeleteTask={handleDeleteTask}
             onRowHistoryClick={handleRowHistoryClick}
           />
         ) : state.view === "timeline" ? (
