@@ -18,6 +18,7 @@ import {
 } from "./queries";
 import { getWeekStarts, toWeekStart, formatWeekRange, runCascadeRecalculate } from "./utils";
 import { PlannerGrid } from "./planner-grid";
+import { AddDropdown } from "./add-dropdown";
 import { exportToXlsx } from "./export-xlsx";
 import { PlannerTimeline } from "./planner-timeline";
 import { PlannerArchive } from "./planner-archive";
@@ -89,7 +90,7 @@ function reducer(state: PlannerState, action: Action): PlannerState {
     case "SET_EFFORTS":     return { ...state, effortMap: buildEffortMap(action.efforts) };
     case "SET_CAPACITIES":  return { ...state, capacityMap: buildCapacityMap(action.capacities) };
     case "SET_HISTORY":     return { ...state, history: action.history };
-    case "TOGGLE_HISTORY":  return { ...state, isHistoryOpen: !state.isHistoryOpen };
+    case "TOGGLE_HISTORY": return { ...state, isHistoryOpen: !state.isHistoryOpen };
     case "SET_HISTORY_FILTER": return { ...state, historyProjectFilter: action.projectId };
     case "TOGGLE_ROW_SELECT": {
       const next = new Set(state.selectedRowIds);
@@ -157,10 +158,8 @@ export function PlannerShell() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleAddProject = useCallback(async () => {
-    if (!userId) return;
-    const name = window.prompt("Project name:");
-    if (!name?.trim()) return;
+  const handleAddProject = useCallback(async (name: string) => {
+    if (!userId || !name.trim()) return;
     const order = activeProjects.length;
     const proj = await createProject(userId, name.trim(), order);
     dispatch({ type: "SET_PROJECTS", projects: [...state.projects, proj] });
@@ -192,20 +191,19 @@ export function PlannerShell() {
     }
   }, [userId, state.projects]);
 
-  const handleAddTask = useCallback(async (projectId: string) => {
+  const handleAddTask = useCallback(async (projectId: string, taskName?: string) => {
     if (!userId) return;
-    const name = window.prompt("Task name:");
+    const name = taskName ?? window.prompt("Task name:");
     if (!name?.trim()) return;
-    const siblingCount = state.tasks.filter(t => t.project_id === projectId).length;
     const maxOrder = state.tasks.length;
-    const task = await createTask(userId, projectId, name.trim(), maxOrder + siblingCount);
+    const task = await createTask(userId, projectId, name.trim(), maxOrder + 1);
     dispatch({ type: "SET_TASKS", tasks: [...state.tasks, task] });
     await addHistory(userId, { project_id: projectId, task_id: task.id, change_type: "task_created", new_value: name.trim() });
   }, [userId, state.tasks]);
 
   const handleUpdateTask = useCallback(async (
     id: string,
-    patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "links" | "priority_order" | "project_id">>,
+    patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "links" | "priority_order" | "project_id" | "priority_label">>,
     historyEntry?: HistoryEntry,
   ) => {
     if (!userId) return;
@@ -288,6 +286,21 @@ export function PlannerShell() {
   ) => {
     if (!userId) return;
     const old = state.capacityMap[roleId]?.[weekStart]?.[field] ?? 0;
+
+    // Optimistic update — build updated capacities array immediately
+    const existingEntry: ResourceCapacity = state.capacityMap[roleId]?.[weekStart] ?? {
+      id: `tmp-${roleId}-${weekStart}`, user_id: userId,
+      role_id: roleId, week_start: weekStart,
+      capacity: 0, taken_other: 0, holiday: 0, buffer_threshold: 0,
+      created_at: "", updated_at: "",
+    };
+    const updatedEntry = { ...existingEntry, [field]: value };
+    const allCaps: ResourceCapacity[] = Object.values(state.capacityMap)
+      .flatMap(wm => Object.values(wm))
+      .filter(c => !(c.role_id === roleId && c.week_start === weekStart));
+    dispatch({ type: "SET_CAPACITIES", capacities: [...allCaps, updatedEntry] });
+
+    // Persist to DB
     await upsertCapacity(userId, roleId, weekStart, { [field]: value });
     const capacities = await fetchResourceCapacity(userId);
     dispatch({ type: "SET_CAPACITIES", capacities });
@@ -498,9 +511,11 @@ export function PlannerShell() {
           >
             <Download size={13} /> Export .xlsx
           </Button>
-          <Button variant="primary" size="sm" onClick={handleAddProject}>
-            <Plus size={13} /> Add Project
-          </Button>
+          <AddDropdown
+            projects={activeProjects}
+            onAddProject={handleAddProject}
+            onAddTask={(name, projId) => handleAddTask(projId, name)}
+          />
         </div>
       </div>
 
@@ -531,6 +546,12 @@ export function PlannerShell() {
             onDeleteTask={handleDeleteTask}
             onRunCascade={handleRunCascade}
             onRowHistoryClick={handleRowHistoryClick}
+            onChangeTaskProject={(taskId, newProjectId) =>
+              handleUpdateTask(taskId, { project_id: newProjectId }, {
+                task_id: taskId, change_type: "status_change",
+                field_name: "project", new_value: newProjectId,
+              })
+            }
           />
         ) : state.view === "timeline" ? (
           <PlannerTimeline

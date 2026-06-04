@@ -5,7 +5,6 @@
 @import "./beautifier.css";
 @import "./bulk-downloader.css";
 @import "./profiles.css";
-@import "../project_timeline_and_capacity_planner/planner.css";
 
 /* ── Design Tokens — Light Mode ── */
 :root {

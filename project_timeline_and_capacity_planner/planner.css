@@ -213,8 +213,8 @@
   height: 32px;
 }
 .row-sum-last td { border-bottom: 2px solid var(--border-strong) !important; }
-.row-sum-req td  { background: rgba(22, 162, 104, 0.04) !important; }
-.row-sum-thr td  { background: rgba(226, 67, 75, 0.04) !important; }
+.row-sum-req td  { background-color: #f0fdf8 !important; }
+.row-sum-thr td  { background-color: #fff6f6 !important; }
 .sum-label {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -286,10 +286,11 @@
 /* Row-type overrides */
 .row-sum     .col-cb, .row-sum     .col-drag, .row-sum     .col-feat,
 .row-sum     .col-pri,.row-sum     .col-eta,  .row-sum     .col-tot  { background-color: var(--surface-1) !important; }
+/* Solid opaque tints — semitransparent rgba fails on sticky cells */
 .row-sum-req .col-cb, .row-sum-req .col-drag, .row-sum-req .col-feat,
-.row-sum-req .col-pri,.row-sum-req .col-eta,  .row-sum-req .col-tot  { background-color: rgba(22,162,104,.05) !important; }
+.row-sum-req .col-pri,.row-sum-req .col-eta,  .row-sum-req .col-tot  { background-color: #f0fdf8 !important; }
 .row-sum-last .col-cb,.row-sum-last .col-drag,.row-sum-last .col-feat,
-.row-sum-last .col-pri,.row-sum-last .col-eta,.row-sum-last .col-tot { background-color: rgba(226,67,75,.05) !important; }
+.row-sum-last .col-pri,.row-sum-last .col-eta,.row-sum-last .col-tot { background-color: #fff6f6 !important; }
 .row-task    .col-cb, .row-task    .col-drag, .row-task    .col-feat,
 .row-task    .col-pri,.row-task    .col-eta,  .row-task    .col-tot  { background-color: var(--surface-1) !important; }
 .row-task:hover .col-cb,.row-task:hover .col-drag,.row-task:hover .col-feat,

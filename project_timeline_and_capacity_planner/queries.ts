@@ -143,7 +143,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "links" | "priority_order" | "project_id">>,
+  patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "links" | "priority_order" | "project_id" | "priority_label">>,
 ): Promise<void> {
   const { error } = await sb().from("planner_tasks").update(patch).eq("id", id);
   if (error) throw error;

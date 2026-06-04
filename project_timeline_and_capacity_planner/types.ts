@@ -44,6 +44,7 @@ export interface Task {
   user_id: string;
   name: string;
   priority_order: number;
+  priority_label: "P1" | "P2" | "P3" | null; // user-set, independent of project priority
   status: TaskStatus;
   is_archived: boolean;
   eta: string | null;

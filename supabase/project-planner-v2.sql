@@ -25,3 +25,9 @@ alter table public.planner_projects
 
 alter table public.planner_tasks
   add column if not exists is_archived boolean not null default false;
+
+-- 4. Per-task priority label (independent from project priority)
+alter table public.planner_tasks
+  add column if not exists priority_label text
+    check (priority_label in ('P1','P2','P3'))
+    default null;

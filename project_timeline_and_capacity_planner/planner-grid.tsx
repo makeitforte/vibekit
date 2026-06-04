@@ -30,7 +30,7 @@ interface Props {
   onReorder: (projectIds: string[], taskIds: string[], historyEntries?: HistoryEntry[]) => void;
   onUpdateProject: (id: string, patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label">>, historyEntry?: HistoryEntry) => void;
   onAddTask: (projectId: string) => void;
-  onUpdateTask: (id: string, patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "priority_order" | "project_id">>, historyEntry?: HistoryEntry) => void;
+  onUpdateTask: (id: string, patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "priority_order" | "project_id" | "priority_label">>, historyEntry?: HistoryEntry) => void;
   onUpsertEffort: (taskId: string, roleId: string, weekStart: string, mandays: number, oldMandays: number) => void;
   onUpsertCapacity: (roleId: string, weekStart: string, field: "capacity" | "taken_other" | "holiday" | "buffer_threshold", value: number) => void;
   onArchiveProject: (id: string) => void;
@@ -38,6 +38,7 @@ interface Props {
   onDeleteTask: (id: string) => void;
   onRunCascade: () => void;
   onRowHistoryClick: (projectId: string) => void;
+  onChangeTaskProject: (taskId: string, newProjectId: string) => void;
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -77,33 +78,73 @@ interface CtxState {
 }
 
 interface ContextMenuProps extends CtxState {
+  projects: Project[];
   onClose: () => void;
   onEditName: () => void;
   onViewHistory: (projectId: string) => void;
   onArchive: (id: string) => void;
   onDelete: (id: string, type: "project" | "task") => void;
+  onChangeProject: (taskId: string, newProjectId: string) => void;
 }
 
-function ContextMenu({ x, y, id, type, projectId, isArchived, onClose, onEditName, onViewHistory, onArchive, onDelete }: ContextMenuProps) {
+function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName, onViewHistory, onArchive, onDelete, onChangeProject }: ContextMenuProps) {
+  const [showProjPicker, setShowProjPicker] = useState(false);
+
   useEffect(() => {
-    const h = () => onClose();
-    document.addEventListener("mousedown", h, { once: true });
+    const h = (e: MouseEvent) => {
+      const el = document.getElementById("ctx-menu-inner");
+      if (el && el.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [onClose]);
 
-  // Flip up if near bottom of viewport
-  const top = y + 200 > window.innerHeight ? y - 200 : y;
+  const top = y + 220 > window.innerHeight ? y - 220 : y;
 
   return createPortal(
-    <div
-      className="ctx-menu"
-      style={{ top, left: x }}
-      onMouseDown={e => e.stopPropagation()}
-    >
+    <div id="ctx-menu-inner" className="ctx-menu" style={{ position: "fixed", top, left: x }} onMouseDown={e => e.stopPropagation()}>
       <button className="ctx-item" onClick={() => { onEditName(); onClose(); }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Edit name
       </button>
+
+      {/* Change project — tasks only */}
+      {type === "task" && (
+        <div style={{ position: "relative" }}>
+          <button className="ctx-item" onMouseEnter={() => setShowProjPicker(true)} onMouseLeave={() => setShowProjPicker(false)}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            Change project
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: "auto" }}><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          {showProjPicker && (
+            <div
+              style={{
+                position: "absolute", left: "100%", top: 0, zIndex: 1,
+                background: "var(--surface-1)", border: "1px solid var(--border-strong)",
+                borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-lg)",
+                padding: 4, minWidth: 180,
+              }}
+              onMouseEnter={() => setShowProjPicker(true)}
+              onMouseLeave={() => setShowProjPicker(false)}
+            >
+              <div style={{ padding: "5px 10px 3px", fontFamily: "var(--font-mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--fg-4)", borderBottom: "1px solid var(--border-subtle)", marginBottom: 4 }}>
+                Move to project
+              </div>
+              {projects.map(p => (
+                <div key={p.id} className="ctx-item"
+                  style={{ fontWeight: p.id === projectId ? 700 : undefined }}
+                  onMouseDown={e => { e.stopPropagation(); onChangeProject(id, p.id); onClose(); }}
+                >
+                  {p.id === projectId && <span style={{ color: "var(--accent-text)", marginRight: 6, fontSize: 11 }}>✓</span>}
+                  {p.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <button className="ctx-item" onClick={() => { onViewHistory(projectId); onClose(); }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         View history
@@ -317,15 +358,16 @@ function CapInput({ value, className, isWeekStart, onChange }: CapInputProps) {
 
 export function PlannerGrid({
   roles, projects, tasks, effortMap, capacityMap, dateRange, weeks, onRunCascade,
-  onDeleteProject, onDeleteTask, onRowHistoryClick,
+  onDeleteProject, onDeleteTask, onRowHistoryClick, onChangeTaskProject,
   selectedRowIds, onDateRangeChange, onToggleSelect, onReorder,
   onUpdateProject, onAddTask, onUpdateTask, onUpsertEffort, onUpsertCapacity,
   onArchiveProject,
 }: Props) {
   const [statusTarget,   setStatusTarget]   = useState<{ rect: DOMRect; id: string; type: "project" | "task" } | null>(null);
-  const [editingId,      setEditingId]      = useState<string | null>(null);
-  const [editingName,    setEditingName]    = useState("");
-  const [ctxMenu,        setCtxMenu]        = useState<CtxState | null>(null);
+  const [editingId,         setEditingId]         = useState<string | null>(null);
+  const [editingName,       setEditingName]       = useState("");
+  const [ctxMenu,           setCtxMenu]           = useState<CtxState | null>(null);
+  const [taskPriTarget,     setTaskPriTarget]     = useState<{ rect: DOMRect; task: Task } | null>(null);
   const [featColWidth,   setFeatColWidth]   = useState(240);
   const resizeDrag = useRef<{ startX: number; startW: number } | null>(null);
   // Computed offsets for dependent sticky cols
@@ -632,13 +674,24 @@ export function PlannerGrid({
                       </button>
                     </div>
                   </td>
-                  {/* Priority — inherits from project label */}
+                  {/* Priority — per-task label, clickable */}
                   <td className="col-pri" style={{ padding: "0 6px" }}>
-                    {proj ? (
-                      <span className={PRI_CLASS[resolveLabel(proj, sortedProjects.indexOf(proj))]} style={{ opacity: 0.6 }}>
-                        {resolveLabel(proj, sortedProjects.indexOf(proj))}
-                      </span>
-                    ) : "—"}
+                    {(() => {
+                      // Resolve: task's own label takes precedence, fallback to project's
+                      const label: "P1"|"P2"|"P3" = task.priority_label
+                        ?? (proj ? resolveLabel(proj, sortedProjects.indexOf(proj)) : "P3");
+                      return (
+                        <button
+                          type="button"
+                          className={PRI_CLASS[label]}
+                          style={{ border: "none", cursor: "pointer", background: "none", padding: "2px 7px" }}
+                          title="Click to change priority label"
+                          onClick={e => { e.stopPropagation(); setTaskPriTarget({ rect: e.currentTarget.getBoundingClientRect(), task }); }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })()}
                   </td>
                   <td className="col-eta eta-cell">{task.eta ? new Date(task.eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</td>
                   <td className="col-tot total-cell">{totalEffort > 0 ? totalEffort : "—"}</td>
@@ -658,17 +711,40 @@ export function PlannerGrid({
         </table>
       </div>
 
+      {/* Task priority label dropdown */}
+      {taskPriTarget && (
+        <PriorityPortal
+          rect={taskPriTarget.rect}
+          current={taskPriTarget.task.priority_label
+            ?? ((() => {
+              const p = sortedProjects.find(pr => pr.id === taskPriTarget.task.project_id);
+              return p ? resolveLabel(p, sortedProjects.indexOf(p)) : "P3";
+            })())}
+          onClose={() => setTaskPriTarget(null)}
+          onSelect={(label) =>
+            onUpdateTask(taskPriTarget.task.id, { priority_label: label as "P1"|"P2"|"P3" }, {
+              task_id: taskPriTarget.task.id,
+              project_id: taskPriTarget.task.project_id,
+              change_type: "priority_change",
+              field_name: "priority_label",
+              old_value: taskPriTarget.task.priority_label ?? undefined,
+              new_value: label,
+              notes: taskPriTarget.task.name,
+            })
+          }
+        />
+      )}
+
       {/* Context menu */}
       {ctxMenu && (
         <ContextMenu
           {...ctxMenu}
+          projects={sortedProjects}
           onClose={() => setCtxMenu(null)}
           onEditName={() => {
-            const proj = projects.find(p => p.id === ctxMenu.id);
-            const task = tasks.find(t => t.id === ctxMenu.id);
-            const name = proj?.name ?? task?.name ?? "";
+            const item = projects.find(p => p.id === ctxMenu.id) ?? tasks.find(t => t.id === ctxMenu.id);
             setEditingId(ctxMenu.id);
-            setEditingName(name);
+            setEditingName(item?.name ?? "");
           }}
           onViewHistory={onRowHistoryClick}
           onArchive={onArchiveProject}
@@ -677,6 +753,9 @@ export function PlannerGrid({
             if (type === "project") onDeleteProject(id);
             else onDeleteTask(id);
           }}
+          onChangeProject={(taskId, newProjectId) =>
+            onChangeTaskProject(taskId, newProjectId)
+          }
         />
       )}
 
