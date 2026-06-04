@@ -327,6 +327,8 @@ export function PlannerGrid({
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editingName,    setEditingName]    = useState("");
   const [ctxMenu,        setCtxMenu]        = useState<CtxState | null>(null);
+  const [featColWidth,   setFeatColWidth]   = useState(200);
+  const resizeDrag = useRef<{ startX: number; startW: number } | null>(null);
 
   const openCtx = (e: React.MouseEvent, id: string, type: "project" | "task", projectId: string, isArchived: boolean) => {
     e.preventDefault();
@@ -509,13 +511,43 @@ export function PlannerGrid({
 
       {/* Scrollable grid */}
       <div className="grid-view">
-        <table className="planner-table">
+        <table className="planner-table" style={{ "--feat-w": `${featColWidth}px` } as React.CSSProperties}>
           <thead>
             {/* Week headers */}
             <tr className="thead-week">
               <th className="col-cb th-sticky" />
               <th className="col-drag th-sticky" />
-              <th className="col-feat th-sticky th-col-header">Feature / Task</th>
+              {/* Resizable Feature/Task column */}
+              <th className="col-feat th-sticky th-col-header" style={{ position: "relative" }}>
+                Feature / Task
+                {/* Resize handle */}
+                <div
+                  style={{
+                    position: "absolute", top: 0, right: 0, bottom: 0, width: 6,
+                    cursor: "col-resize", zIndex: 2,
+                    background: "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    resizeDrag.current = { startX: e.clientX, startW: featColWidth };
+                    const onMove = (me: MouseEvent) => {
+                      if (!resizeDrag.current) return;
+                      const delta = me.clientX - resizeDrag.current.startX;
+                      setFeatColWidth(Math.max(120, resizeDrag.current.startW + delta));
+                    };
+                    const onUp = () => {
+                      resizeDrag.current = null;
+                      window.removeEventListener("mousemove", onMove);
+                      window.removeEventListener("mouseup", onUp);
+                    };
+                    window.addEventListener("mousemove", onMove);
+                    window.addEventListener("mouseup", onUp);
+                  }}
+                >
+                  <div style={{ width: 2, height: 16, background: "var(--border-strong)", borderRadius: 1, opacity: 0.6 }} />
+                </div>
+              </th>
               <th className="col-pri th-sticky th-col-header center">Pri</th>
               <th className="col-eta th-sticky th-col-header">ETA</th>
               <th className="col-tot th-sticky th-col-header center">Total<br /><span style={{ fontSize: 9 }}>effort</span></th>
@@ -648,7 +680,7 @@ export function PlannerGrid({
                             onClick={e => e.stopPropagation()}
                           />
                         ) : (
-                          <span className="feat-name" onDoubleClick={e => { e.stopPropagation(); setEditingId(proj.id); setEditingName(proj.name); }} title="Double-click to edit">{proj.name}</span>
+                          <span className="feat-name" onDoubleClick={e => { e.stopPropagation(); setEditingId(proj.id); setEditingName(proj.name); }} title={proj.name}>{proj.name}</span>
                         )}
                         <button
                           className={cn("inline-status", STATUS_CSS[proj.status])}
@@ -736,7 +768,7 @@ export function PlannerGrid({
                           onClick={e => e.stopPropagation()}
                         />
                       ) : (
-                        <span className="feat-name" onDoubleClick={e => { e.stopPropagation(); setEditingId(task.id); setEditingName(task.name); }} title="Double-click to edit">{task.name}</span>
+                        <span className="feat-name" onDoubleClick={e => { e.stopPropagation(); setEditingId(task.id); setEditingName(task.name); }} title={task.name}>{task.name}</span>
                       )}
                       <button
                         className={cn("inline-status", STATUS_CSS[task.status])}
@@ -870,6 +902,7 @@ interface SummaryRowsProps {
 }
 
 function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpsertCapacity }: SummaryRowsProps) {
+
   const emptySticky = (
     <>
       <td className="col-cb" />
