@@ -277,31 +277,25 @@
   height: 34px;
 }
 
-/* Sticky cells must be opaque to cover scrolled non-sticky content.
-   z-index 12 puts them above non-sticky cells during horizontal scroll. */
-.row-task .col-cb,   .row-task .col-drag,
-.row-task .col-feat, .row-task .col-pri,
-.row-task .col-eta,  .row-task .col-tot  { background: var(--surface-1) !important; }
-
-.row-sum .col-cb,    .row-sum .col-drag,
-.row-sum .col-feat,  .row-sum .col-pri,
-.row-sum .col-eta,   .row-sum .col-tot   { background: var(--surface-1) !important; }
-
-.row-sum-req .col-cb,   .row-sum-req .col-drag,
-.row-sum-req .col-feat, .row-sum-req .col-pri,
-.row-sum-req .col-eta,  .row-sum-req .col-tot  { background: rgba(22,162,104,.04) !important; }
-
-.row-sum-last .col-cb,   .row-sum-last .col-drag,
-.row-sum-last .col-feat, .row-sum-last .col-pri,
-.row-sum-last .col-eta,  .row-sum-last .col-tot { background: rgba(226,67,75,.04) !important; }
-
-.row-task:hover .col-cb,   .row-task:hover .col-drag,
-.row-task:hover .col-feat, .row-task:hover .col-pri,
-.row-task:hover .col-eta,  .row-task:hover .col-tot { background: var(--surface-3) !important; }
-
-.row-selected .col-cb,   .row-selected .col-drag,
-.row-selected .col-feat, .row-selected .col-pri,
-.row-selected .col-eta,  .row-selected .col-tot  { background: var(--accent-muted) !important; }
+/* Sticky cells MUST have opaque solid background.
+   Without this, scrolled non-sticky cells show through.
+   background-color (not background shorthand) avoids conflicts. */
+.col-cb, .col-drag, .col-feat, .col-pri, .col-eta, .col-tot {
+  background-color: var(--surface-1);
+}
+/* Row-type overrides */
+.row-sum     .col-cb, .row-sum     .col-drag, .row-sum     .col-feat,
+.row-sum     .col-pri,.row-sum     .col-eta,  .row-sum     .col-tot  { background-color: var(--surface-1) !important; }
+.row-sum-req .col-cb, .row-sum-req .col-drag, .row-sum-req .col-feat,
+.row-sum-req .col-pri,.row-sum-req .col-eta,  .row-sum-req .col-tot  { background-color: rgba(22,162,104,.05) !important; }
+.row-sum-last .col-cb,.row-sum-last .col-drag,.row-sum-last .col-feat,
+.row-sum-last .col-pri,.row-sum-last .col-eta,.row-sum-last .col-tot { background-color: rgba(226,67,75,.05) !important; }
+.row-task    .col-cb, .row-task    .col-drag, .row-task    .col-feat,
+.row-task    .col-pri,.row-task    .col-eta,  .row-task    .col-tot  { background-color: var(--surface-1) !important; }
+.row-task:hover .col-cb,.row-task:hover .col-drag,.row-task:hover .col-feat,
+.row-task:hover .col-pri,.row-task:hover .col-eta,.row-task:hover .col-tot { background-color: var(--surface-3) !important; }
+.row-selected .col-cb,.row-selected .col-drag,.row-selected .col-feat,
+.row-selected .col-pri,.row-selected .col-eta,.row-selected .col-tot { background-color: var(--accent-muted) !important; }
 
 /* Hover */
 .row-project:hover td,

@@ -127,10 +127,19 @@ export function runCascadeRecalculate(
     for (let wi = 0; wi < weeks.length; wi++) {
       const week = weeks[wi];
       const cap = capacityMap[roleId]?.[week];
-      // Available = capacity minus deductions; target is buffer >= 0
-      const available = (cap?.capacity ?? 0) - (cap?.taken_other ?? 0) - (cap?.holiday ?? 0);
+      // Skip weeks with no capacity configured
+      if (!cap || (cap.capacity ?? 0) === 0) continue;
+
+      // Available = capacity after ALL deductions INCLUDING threshold.
+      // This makes cascade push until buffer >= threshold (not just >= 0),
+      // so the trigger (buffer < threshold) stops firing after cascade runs.
+      const available = (cap.capacity ?? 0)
+        - (cap.taken_other ?? 0)
+        - (cap.holiday ?? 0)
+        - (cap.buffer_threshold ?? 0);
+
       if (available <= 0) {
-        // No capacity at all — push every task with effort here to next week
+        // All capacity consumed — push everything to next week
         if (wi + 1 >= weeks.length) continue;
         const nextWeek = weeks[wi + 1];
         for (const taskId of orderedTaskIds) {

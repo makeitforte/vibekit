@@ -1,0 +1,231 @@
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <!-- TITLE -->
+    <mxCell id="title" value="Cascade Algorithm — Shift Mandays When Buffer &lt; Threshold" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1a1a1a;" vertex="1" parent="1">
+      <mxGeometry x="200" y="20" width="769" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- ── PHASE 1: TRIGGER ── -->
+    <mxCell id="p1_label" value="PHASE 1 — TRIGGER" style="text;html=1;strokeColor=none;fillColor=#e8f5e9;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;arcSize=10;fontSize=11;fontStyle=1;fontColor=#0e7a4e;" vertex="1" parent="1">
+      <mxGeometry x="60" y="80" width="200" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- Start -->
+    <mxCell id="start" value="START&#xa;User enters mandays / capacity changes" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="420" y="80" width="320" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- Compute buffer -->
+    <mxCell id="compute" value="Compute Buffer for every Week × Role&#xa;Buffer = Capacity − Total Required − Taken − Holiday" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="370" y="175" width="420" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- Decision: any below threshold? -->
+    <mxCell id="d_trigger" value="Any Week+Role where&#xa;Buffer &lt; Min Buffer Threshold?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="390" y="270" width="380" height="80" as="geometry" />
+    </mxCell>
+
+    <!-- No — nothing to do -->
+    <mxCell id="no_trigger" value="No cascade needed.&#xa;Grid stays as-is." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="820" y="285" width="200" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- Show banner -->
+    <mxCell id="banner" value="Show &#34;Run Cascade&#34; banner&#xa;(amber = below threshold, red = negative)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="390" y="390" width="380" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- User clicks -->
+    <mxCell id="user_click" value="User clicks &#34;Run Cascade&#34;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="440" y="485" width="280" height="45" as="geometry" />
+    </mxCell>
+
+    <!-- ── PHASE 2: ALGORITHM ── -->
+    <mxCell id="p2_label" value="PHASE 2 — ALGORITHM (one full pass, all weeks)" style="text;html=1;strokeColor=none;fillColor=#fff3e0;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;arcSize=10;fontSize=11;fontStyle=1;fontColor=#876200;" vertex="1" parent="1">
+      <mxGeometry x="60" y="560" width="340" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- Loop weeks -->
+    <mxCell id="loop_week" value="For each Week W&#xa;(chronological order W1→W2→W3…)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="390" y="560" width="380" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- Loop roles -->
+    <mxCell id="loop_role" value="For each Role R&#xa;(BE, FE Web, FE Android, FE iOS, QA…)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="390" y="650" width="380" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- Compute available -->
+    <mxCell id="avail" value="Available(W,R) = Capacity − Taken − Holiday&#xa;(does NOT subtract threshold — target is buffer ≥ 0)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="345" y="740" width="470" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- Decision: need cascade? -->
+    <mxCell id="d_need" value="Total Required(W,R) &gt; Available?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="400" y="835" width="360" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- No — next role -->
+    <mxCell id="no_need" value="Skip → next Role" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="820" y="852" width="160" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- ── PHASE 3: FILL FROM TOP ── -->
+    <mxCell id="p3_label" value="PHASE 3 — FILL FROM TOP" style="text;html=1;strokeColor=none;fillColor=#fce4ec;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;arcSize=10;fontSize=11;fontStyle=1;fontColor=#c22a32;" vertex="1" parent="1">
+      <mxGeometry x="60" y="945" width="240" height="30" as="geometry" />
+    </mxCell>
+
+    <!-- Walk tasks -->
+    <mxCell id="walk" value="Walk tasks TOP → BOTTOM (priority order)&#xa;Track cumulative effort, overflow_found = false" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#e1a0b0;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="370" y="945" width="420" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- For each task -->
+    <mxCell id="for_task" value="For each Task T (in priority order)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4ec;strokeColor=#e1a0b0;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="390" y="1035" width="380" height="45" as="geometry" />
+    </mxCell>
+
+    <!-- Decision: overflow already found? -->
+    <mxCell id="d_overflow" value="overflow_found = true?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="400" y="1115" width="360" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- YES — push all -->
+    <mxCell id="push_all" value="Push ALL effort(T,R,W) to W+1&#xa;effort(T,R,W) = 0&#xa;effort(T,R,W+1) += effort(T,R,W)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="820" y="1118" width="240" height="65" as="geometry" />
+    </mxCell>
+
+    <!-- NO — accumulate -->
+    <mxCell id="accum" value="cumulative += effort(T,R,W)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="370" y="1225" width="420" height="45" as="geometry" />
+    </mxCell>
+
+    <!-- Decision: cumulative > available? -->
+    <mxCell id="d_cum" value="cumulative &gt; Available?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="400" y="1305" width="360" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- NO — task fits -->
+    <mxCell id="fits" value="Task fits → continue&#xa;to next task ↺" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="820" y="1318" width="160" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- YES — OVERFLOW POINT -->
+    <mxCell id="overflow" value="⚡ OVERFLOW POINT at Task T&#xa;keep = Available − (cumulative − effort(T))&#xa;push = effort(T) − keep&#xa;effort(T,R,W) = keep&#xa;effort(T,R,W+1) += push&#xa;overflow_found = true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="355" y="1415" width="450" height="100" as="geometry" />
+    </mxCell>
+
+    <!-- Loop back to next task -->
+    <mxCell id="next_task" value="Next task ↺" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="440" y="1555" width="280" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Loop back to next role -->
+    <mxCell id="next_role" value="Next role ↺" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="440" y="1635" width="280" height="40" as="geometry" />
+    </mxCell>
+
+    <!-- Loop back to next week -->
+    <mxCell id="next_week" value="Next week ↺ (W+1 may also cascade)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#d6b656;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="390" y="1715" width="380" height="45" as="geometry" />
+    </mxCell>
+
+    <!-- All weeks done -->
+    <mxCell id="done" value="All weeks processed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="440" y="1800" width="280" height="45" as="geometry" />
+    </mxCell>
+
+    <!-- Persist + refresh -->
+    <mxCell id="persist" value="Persist changed cells to DB&#xa;(delete-then-insert per cell)&#xa;Reload effort from DB → update UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="390" y="1885" width="380" height="65" as="geometry" />
+    </mxCell>
+
+    <!-- Check again -->
+    <mxCell id="recheck" value="Re-check buffers&#xa;Still below threshold?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="400" y="1990" width="360" height="70" as="geometry" />
+    </mxCell>
+
+    <!-- Still issues -->
+    <mxCell id="still_warn" value="Show banner again&#xa;User can Run Cascade again" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="820" y="2003" width="220" height="50" as="geometry" />
+    </mxCell>
+
+    <!-- END -->
+    <mxCell id="end" value="END — Grid shows updated effort&#xa;Banner hidden, cascade complete" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="420" y="2100" width="320" height="55" as="geometry" />
+    </mxCell>
+
+    <!-- ── EDGES ── -->
+    <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="start" target="compute" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="compute" target="d_trigger" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e3" value="NO" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="d_trigger" target="no_trigger" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e4" value="YES" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="d_trigger" target="banner" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="banner" target="user_click" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="user_click" target="loop_week" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="loop_week" target="loop_role" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="loop_role" target="avail" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="avail" target="d_need" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e10" value="NO" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="d_need" target="no_need" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e11" value="YES" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="d_need" target="walk" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="walk" target="for_task" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="for_task" target="d_overflow" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e14" value="YES" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="d_overflow" target="push_all" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e15" value="NO" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="d_overflow" target="accum" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="accum" target="d_cum" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e17" value="NO" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="d_cum" target="fits" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e18" value="YES" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="d_cum" target="overflow" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="overflow" target="next_task" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="push_all" target="next_task" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="940" y="1555" /></Array></mxGeometry></mxCell>
+    <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="fits" target="next_task" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="900" y="1555" /></Array></mxGeometry></mxCell>
+    <mxCell id="e22" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="next_task" target="for_task" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points"><mxPoint x="210" y="1575" /><mxPoint x="210" y="1058" /></Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="next_task" target="next_role" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e24" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="no_need" target="next_role" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="900" y="1635" /></Array></mxGeometry></mxCell>
+    <mxCell id="e25" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="next_role" target="loop_role" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points"><mxPoint x="170" y="1655" /><mxPoint x="170" y="677" /></Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e26" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="next_role" target="next_week" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e27" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="next_week" target="loop_week" parent="1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points"><mxPoint x="120" y="1737" /><mxPoint x="120" y="587" /></Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e28" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="next_week" target="done" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e29" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="done" target="persist" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e30" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="persist" target="recheck" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e31" value="NO" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="recheck" target="end" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+    <mxCell id="e32" value="YES" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="recheck" target="still_warn" parent="1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+    <!-- ── LEGEND ── -->
+    <mxCell id="leg_title" value="LEGEND" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="2100" width="100" height="20" as="geometry" />
+    </mxCell>
+    <mxCell id="leg1" value="Process / Action" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="60" y="2125" width="150" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="leg2" value="Decision" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="220" y="2120" width="100" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="leg3" value="Push / Overflow action" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="330" y="2125" width="160" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="leg4" value="Loop / Iteration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="500" y="2125" width="140" height="30" as="geometry" />
+    </mxCell>
+    <mxCell id="leg5" value="Start / End" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="650" y="2120" width="120" height="40" as="geometry" />
+    </mxCell>
+    <mxCell id="leg6" value="Warning / UI state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="780" y="2125" width="160" height="30" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>
