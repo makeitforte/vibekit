@@ -205,16 +205,32 @@
 }
 .th-role.first { border-left: 2px solid var(--border-strong); }
 
-/* ── Summary rows ── */
+/* ── Summary rows — sticky vertically ── */
+/* top values set via inline style in React component.
+   All rows share z-index:15; DOM order handles which paints last. */
+.row-sum {
+  position: sticky;
+  z-index: 15;
+}
 .row-sum td {
-  background: var(--surface-1) !important;
+  background-color: var(--surface-1) !important;
   border-bottom: 1px solid var(--border-subtle);
   padding: 5px 8px;
   height: 32px;
 }
+/* Sticky-left cells inside summary rows need z-index > row z-index */
+.row-sum .col-cb, .row-sum .col-drag, .row-sum .col-feat,
+.row-sum .col-pri, .row-sum .col-eta, .row-sum .col-tot {
+  z-index: 16 !important;
+  background-color: var(--surface-1) !important;
+}
 .row-sum-last td { border-bottom: 2px solid var(--border-strong) !important; }
 .row-sum-req td  { background-color: #f0fdf8 !important; }
+.row-sum-req .col-cb, .row-sum-req .col-drag, .row-sum-req .col-feat,
+.row-sum-req .col-pri, .row-sum-req .col-eta, .row-sum-req .col-tot { background-color: #f0fdf8 !important; }
 .row-sum-thr td  { background-color: #fff6f6 !important; }
+.row-sum-thr .col-cb, .row-sum-thr .col-drag, .row-sum-thr .col-feat,
+.row-sum-thr .col-pri, .row-sum-thr .col-eta, .row-sum-thr .col-tot { background-color: #fff6f6 !important; }
 .sum-label {
   font-family: var(--font-mono);
   font-size: 10px;

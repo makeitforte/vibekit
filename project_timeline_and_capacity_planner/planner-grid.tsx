@@ -886,8 +886,8 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
 
   return (
     <>
-      {/* Capacity */}
-      <tr className="row-sum">
+      {/* Capacity — top = thead-week(33) + thead-role(28) = 61px */}
+      <tr className="row-sum" style={{ top: 61 }}>
         {emptySticky}
         <td className="col-feat" style={{ padding: "0 10px" }}><span className="sum-label">Capacity (mandays)</span></td>
         <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
@@ -906,8 +906,8 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Total Required */}
-      <tr className="row-sum row-sum-req">
+      {/* Total Required — 61 + 33 */}
+      <tr className="row-sum row-sum-req" style={{ top: 94 }}>
         {emptySticky}
         <td className="col-feat" style={{ padding: "0 10px" }}>
           <span className="sum-label sum-label-req">Total Required</span>
@@ -925,8 +925,8 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Taken */}
-      <tr className="row-sum">
+      {/* Taken — 94 + 33 */}
+      <tr className="row-sum" style={{ top: 127 }}>
         {emptySticky}
         <td className="col-feat" style={{ padding: "0 10px" }}><span className="sum-label">Taken (other squad)</span></td>
         <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
@@ -945,8 +945,8 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Holiday */}
-      <tr className="row-sum">
+      {/* Holiday — 127 + 33 */}
+      <tr className="row-sum" style={{ top: 160 }}>
         {emptySticky}
         <td className="col-feat" style={{ padding: "0 10px" }}><span className="sum-label">Holiday / Day-off</span></td>
         <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
@@ -966,8 +966,8 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Buffer / Shortage */}
-      <tr className="row-sum">
+      {/* Buffer / Shortage — 160 + 33 */}
+      <tr className="row-sum" style={{ top: 193 }}>
         {emptySticky}
         <td className="col-feat" style={{ padding: "0 10px" }}><span className="sum-label">Buffer / Shortage</span></td>
         <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
@@ -986,8 +986,8 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Min Buffer Threshold */}
-      <tr className="row-sum row-sum-thr row-sum-last">
+      {/* Min Buffer Threshold — 193 + 33 */}
+      <tr className="row-sum row-sum-thr row-sum-last" style={{ top: 226 }}>
         {emptySticky}
         <td className="col-feat" style={{ padding: "0 10px" }}>
           <span className="sum-label sum-label-thr">Min Buffer Threshold</span>
