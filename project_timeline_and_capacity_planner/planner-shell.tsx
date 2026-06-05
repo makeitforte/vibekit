@@ -332,13 +332,35 @@ export function PlannerShell() {
 
   const handleBulkDelete = useCallback(async () => {
     if (!userId) return;
-    if (!window.confirm(`Delete ${state.selectedRowIds.size} item(s)? This cannot be undone.`)) return;
-    for (const id of state.selectedRowIds) {
-      if (state.projects.some(p => p.id === id)) await handleDeleteProject(id);
-      else if (state.tasks.some(t => t.id === id)) await handleDeleteTask(id);
-    }
+    const ids = Array.from(state.selectedRowIds);
+    if (!ids.length) return;
+    if (!window.confirm(`Delete ${ids.length} item(s)? This cannot be undone.`)) return;
+
+    // Snapshot current IDs before any state mutation
+    const projIdsSet = new Set(state.projects.map(p => p.id));
+    const taskIdsSet = new Set(state.tasks.map(t => t.id));
+    const projIds = ids.filter(id => projIdsSet.has(id));
+    const taskIds = ids.filter(id => taskIdsSet.has(id));
+
+    // Single optimistic update — remove all at once to avoid stale closure issues
+    dispatch({
+      type: "SET_PROJECTS",
+      projects: state.projects.filter(p => !projIds.includes(p.id)),
+    });
+    dispatch({
+      type: "SET_TASKS",
+      tasks: state.tasks.filter(
+        t => !taskIds.includes(t.id) && !projIds.includes(t.project_id)
+      ),
+    });
     dispatch({ type: "CLEAR_SELECTION" });
-  }, [userId, state.selectedRowIds, state.projects, state.tasks, handleDeleteProject, handleDeleteTask]);
+
+    // Persist to DB in parallel
+    await Promise.all([
+      ...projIds.map(id => deleteProject(id)),
+      ...taskIds.map(id => deleteTask(id)),
+    ]);
+  }, [userId, state.selectedRowIds, state.projects, state.tasks]);
 
   const handleArchiveProject = useCallback(async (id: string) => {
     if (!userId) return;
@@ -561,6 +583,8 @@ export function PlannerShell() {
             effortMap={state.effortMap}
             dateRange={state.dateRange}
             weeks={weeks}
+            onDeleteProject={handleDeleteProject}
+            onArchiveProject={handleArchiveProject}
           />
         ) : (
           <PlannerArchive

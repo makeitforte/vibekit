@@ -11,11 +11,13 @@ interface Props {
   effortMap: EffortMap;
   dateRange: PlannerDateRange;
   weeks: string[];
+  onDeleteProject: (id: string) => void;
+  onArchiveProject: (id: string) => void;
 }
 
 const ROLE_EC_CLASS = ["ec-be", "ec-fw", "ec-fa", "ec-fi", "ec-qa"];
 
-export function PlannerTimeline({ roles, projects, tasks, effortMap, weeks }: Props) {
+export function PlannerTimeline({ roles, projects, tasks, effortMap, weeks, onDeleteProject, onArchiveProject }: Props) {
   const sortedProjects = [...projects].sort((a, b) => a.priority_order - b.priority_order);
   const sortedTasks    = [...tasks].sort((a, b) => a.priority_order - b.priority_order);
 
@@ -77,9 +79,30 @@ export function PlannerTimeline({ roles, projects, tasks, effortMap, weeks }: Pr
                       <span className={`pri-badge pri-${Math.min(pi + 1, 3)}`}>P{pi + 1}</span>
                       {proj.name}
                       {isPushed && <span className="push-tag">→{projFirst ? `W${weeks.indexOf(projFirst) + 1}` : ""}</span>}
-                      <span className={cn("inline-status", pi === 0 ? "st-ip" : "st-td")} style={{ marginLeft: "auto", cursor: "default" }}>
+                      <span className={cn("inline-status", pi === 0 ? "st-ip" : "st-td")} style={{ cursor: "default" }}>
                         <span className="st-dot" style={{ background: pi === 0 ? "#3b82f6" : "var(--fg-4)" }} />
                         {pi === 0 ? "In Progress" : "To Do"}
+                      </span>
+                      {/* Action buttons — visible on row hover */}
+                      <span style={{ marginLeft: "auto", display: "flex", gap: 4, opacity: 0 }} className="gantt-row-actions">
+                        <button
+                          title="Archive project"
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", borderRadius: 4, color: "var(--fg-3)" }}
+                          onClick={() => { if (window.confirm(`Archive "${proj.name}"?`)) onArchiveProject(proj.id); }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "var(--warning-text)")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "var(--fg-3)")}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg>
+                        </button>
+                        <button
+                          title="Delete project"
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", borderRadius: 4, color: "var(--fg-3)" }}
+                          onClick={() => { if (window.confirm(`Delete "${proj.name}" and all its tasks? This cannot be undone.`)) onDeleteProject(proj.id); }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-text)")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "var(--fg-3)")}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+                        </button>
                       </span>
                     </div>
                   </td>

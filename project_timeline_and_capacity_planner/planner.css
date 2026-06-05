@@ -584,6 +584,8 @@ td { padding: 0; height: 34px; vertical-align: middle; }
 }
 .gantt-project-row td { background: var(--surface-3); border-bottom: 1px solid var(--border-strong); }
 .gantt-project-row .gantt-name { font-weight: 700; }
+.gantt-project-row:hover .gantt-row-actions { opacity: 1 !important; transition: opacity 120ms; }
+.gantt-row-actions { transition: opacity 120ms; }
 .gantt-legend {
   display: flex;
   align-items: center;
