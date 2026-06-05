@@ -306,7 +306,7 @@
 .row-selected td { background: var(--accent-muted) !important; }
 
 /* Dragging row — faded ghost */
-.row-dragging { opacity: 0.25; pointer-events: none; }
+.row-dragging { opacity: 0.25; }
 
 /* Drop target — prominent 3px accent line + subtle tint */
 .row-drop-target td {
