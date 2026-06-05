@@ -1,7 +1,7 @@
 "use client";
 
 import { Role, Project, Task, EffortMap, PlannerDateRange } from "./types";
-import { formatWeekRange, getTaskTotalEffort } from "./utils";
+import { formatWeekRange, getTaskTotalEffort, deriveProjectStatus } from "./utils";
 import { cn } from "@/lib/cn";
 
 interface Props {
@@ -79,10 +79,23 @@ export function PlannerTimeline({ roles, projects, tasks, effortMap, weeks, onDe
                       <span className={`pri-badge pri-${Math.min(pi + 1, 3)}`}>P{pi + 1}</span>
                       {proj.name}
                       {isPushed && <span className="push-tag">→{projFirst ? `W${weeks.indexOf(projFirst) + 1}` : ""}</span>}
-                      <span className={cn("inline-status", pi === 0 ? "st-ip" : "st-td")} style={{ cursor: "default" }}>
-                        <span className="st-dot" style={{ background: pi === 0 ? "#3b82f6" : "var(--fg-4)" }} />
-                        {pi === 0 ? "In Progress" : "To Do"}
-                      </span>
+                      {(() => {
+                        const projTasks = sortedTasks.filter(t => t.project_id === proj.id);
+                        const derived = deriveProjectStatus(projTasks);
+                        const STATUS_MAP = {
+                          todo:        { css: "st-td", dot: "var(--fg-4)",  label: "To Do"       },
+                          in_progress: { css: "st-ip", dot: "#3b82f6",      label: "In Progress"  },
+                          done:        { css: "st-dn", dot: "var(--accent)", label: "Done"         },
+                          cancelled:   { css: "st-cx", dot: "var(--fg-4)",  label: "Cancelled"    },
+                        };
+                        const s = STATUS_MAP[derived] ?? STATUS_MAP.todo;
+                        return (
+                          <span className={cn("inline-status", s.css)} style={{ cursor: "default" }}>
+                            <span className="st-dot" style={{ background: s.dot }} />
+                            {s.label}
+                          </span>
+                        );
+                      })()}
                       {/* Action buttons — visible on row hover */}
                       <span style={{ marginLeft: "auto", display: "flex", gap: 4, opacity: 0 }} className="gantt-row-actions">
                         <button

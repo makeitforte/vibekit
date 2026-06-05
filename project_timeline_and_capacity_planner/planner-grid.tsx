@@ -44,26 +44,40 @@ interface Props {
 // ── Status helpers ────────────────────────────────────────────────────────────
 
 const STATUS_CSS: Record<TaskStatus | ProjectStatus, string> = {
-  in_progress: "st-ip", todo: "st-td", done: "st-dn",
-  released: "st-rl", cancelled: "st-cx",
+  todo: "st-td", prd_in_progress: "st-prd-ip", prd_ready: "st-prd-rdy",
+  in_progress: "st-ip", done: "st-dn", released: "st-rl", cancelled: "st-cx",
 };
 const STATUS_LABEL: Record<TaskStatus | ProjectStatus, string> = {
-  in_progress: "In Progress", todo: "To Do", done: "Done",
-  released: "Released", cancelled: "Cancelled",
+  todo: "To Do", prd_in_progress: "PRD In Progress", prd_ready: "PRD Ready",
+  in_progress: "In Progress", done: "Done", released: "Released", cancelled: "Cancelled",
 };
 const STATUS_DOT_COLOR: Record<TaskStatus | ProjectStatus, string> = {
-  in_progress: "#3b82f6", todo: "var(--fg-4)", done: "var(--accent)",
-  released: "#8b5cf6", cancelled: "var(--fg-4)",
+  todo: "var(--fg-4)", prd_in_progress: "#f59e0b", prd_ready: "#10b981",
+  in_progress: "#3b82f6", done: "var(--accent)", released: "#8b5cf6", cancelled: "var(--fg-4)",
 };
 
-// Unified statuses — same for both projects and tasks
-const ALL_ITEM_STATUSES: { value: ProjectStatus | TaskStatus; label: string; dot: string }[] = [
+// Project statuses (no PRD stages)
+const PROJECT_STATUSES: { value: ProjectStatus; label: string; dot: string }[] = [
   { value: "todo",        label: "To Do",       dot: "var(--fg-4)" },
   { value: "in_progress", label: "In Progress", dot: "#3b82f6" },
   { value: "done",        label: "Done",        dot: "var(--accent)" },
   { value: "released",    label: "Released",    dot: "#8b5cf6" },
   { value: "cancelled",   label: "Cancelled",   dot: "var(--fg-4)" },
 ];
+
+// Task statuses (includes PRD stages)
+const TASK_STATUSES: { value: TaskStatus; label: string; dot: string }[] = [
+  { value: "todo",            label: "To Do",            dot: "var(--fg-4)" },
+  { value: "prd_in_progress", label: "PRD In Progress",  dot: "#f59e0b" },
+  { value: "prd_ready",       label: "PRD Ready",        dot: "#10b981" },
+  { value: "in_progress",     label: "In Progress",      dot: "#3b82f6" },
+  { value: "done",            label: "Done",             dot: "var(--accent)" },
+  { value: "released",        label: "Released",         dot: "#8b5cf6" },
+  { value: "cancelled",       label: "Cancelled",        dot: "var(--fg-4)" },
+];
+
+// For backward compat — keep a combined list
+const ALL_ITEM_STATUSES = TASK_STATUSES;
 
 // ── Role colour class (index-based) ──────────────────────────────────────────
 const ROLE_EC_CLASS = ["ec-be", "ec-fw", "ec-fa", "ec-fi", "ec-qa"];
@@ -169,11 +183,12 @@ function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName,
 
 interface StatusPortalProps {
   rect: DOMRect;
+  kind: "project" | "task";
   onSelect: (status: TaskStatus | ProjectStatus) => void;
   onClose: () => void;
 }
 
-function StatusPortal({ rect, onSelect, onClose }: StatusPortalProps) {
+function StatusPortal({ rect, kind, onSelect, onClose }: StatusPortalProps) {
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       // Only close if the click is outside the portal
@@ -208,7 +223,7 @@ function StatusPortal({ rect, onSelect, onClose }: StatusPortalProps) {
       }}>
         Change Status
       </div>
-      {ALL_ITEM_STATUSES.map(({ value, label, dot }) => (
+      {(kind === "project" ? PROJECT_STATUSES : TASK_STATUSES).map(({ value, label, dot }) => (
         <div
           key={value}
           className="status-portal-item"
@@ -764,6 +779,7 @@ export function PlannerGrid({
       {statusTarget && (
         <StatusPortal
           rect={statusTarget.rect}
+          kind={statusTarget.type}
           onClose={() => setStatusTarget(null)}
           onSelect={(status) => {
             if (statusTarget.type === "project") {

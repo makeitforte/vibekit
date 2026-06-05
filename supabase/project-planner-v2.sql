@@ -31,3 +31,10 @@ alter table public.planner_tasks
   add column if not exists priority_label text
     check (priority_label in ('P1','P2','P3'))
     default null;
+
+-- 5. Expand task status to include PRD stages
+alter table public.planner_tasks
+  drop constraint if exists planner_tasks_status_check;
+alter table public.planner_tasks
+  add constraint planner_tasks_status_check
+    check (status in ('todo','prd_in_progress','prd_ready','in_progress','done','released','cancelled'));

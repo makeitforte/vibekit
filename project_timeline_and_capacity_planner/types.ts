@@ -1,9 +1,19 @@
 // ── Domain types ──────────────────────────────────────────────────────────────
 
-// Projects and tasks share the same status values
-export type ItemStatus = "todo" | "in_progress" | "done" | "released" | "cancelled";
-export type ProjectStatus = ItemStatus;
-export type TaskStatus = ItemStatus;
+// Project statuses
+export type ProjectStatus = "todo" | "in_progress" | "done" | "released" | "cancelled";
+
+// Task statuses — includes PRD stages
+export type TaskStatus =
+  | "todo"
+  | "prd_in_progress"  // PRD being written
+  | "prd_ready"        // PRD done, ready for dev
+  | "in_progress"
+  | "done"
+  | "released"
+  | "cancelled";
+
+export type ItemStatus = ProjectStatus | TaskStatus;
 export type ChangeType =
   | "priority_change"
   | "mandays_change"

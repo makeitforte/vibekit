@@ -21,6 +21,11 @@ export function AddDropdown({ projects, onAddProject, onAddTask }: Props) {
   const btnRef                = useRef<HTMLButtonElement>(null);
   const [pos, setPos]         = useState({ top: 0, left: 0 });
 
+  // Sync projId when projects load after mount (async Supabase fetch)
+  useEffect(() => {
+    if (!projId && projects.length > 0) setProjId(projects[0].id);
+  }, [projects, projId]);
+
   useEffect(() => {
     if (open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();

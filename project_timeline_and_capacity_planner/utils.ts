@@ -195,6 +195,24 @@ export function runCascadeRecalculate(
   return { newEffortMap: result, changes };
 }
 
+// ── Derive project status from its tasks ─────────────────────────────────────
+export function deriveProjectStatus(
+  projectTasks: { status: string; is_archived: boolean }[],
+): "todo" | "in_progress" | "done" | "cancelled" {
+  const active = projectTasks.filter(t => !t.is_archived);
+  if (active.length === 0) return "todo";
+  const statuses = active.map(t => t.status);
+
+  // If any task is cancelled and all others are done/released/cancelled → done
+  if (statuses.every(s => ["done", "released", "cancelled"].includes(s))) return "done";
+
+  // Any task actively being worked on (including PRD stages)
+  const activeStatuses = ["in_progress", "prd_in_progress", "prd_ready"];
+  if (statuses.some(s => activeStatuses.includes(s))) return "in_progress";
+
+  return "todo";
+}
+
 // ── Total effort for a task ───────────────────────────────────────────────────
 export function getTaskTotalEffort(
   taskId: string,

@@ -369,8 +369,13 @@
 .st-dn .st-dot  { background: var(--accent); }
 .st-rl  { background: rgba(139, 92, 246, 0.10); color: #6d28d9; }
 .st-rl .st-dot  { background: #8b5cf6; }
-.st-cx  { background: var(--surface-4); color: var(--fg-4); }
+.st-cx      { background: var(--surface-4); color: var(--fg-4); }
 .st-cx .st-dot  { background: var(--fg-4); }
+/* PRD statuses */
+.st-prd-ip  { background: rgba(245,158,11,.12); color: #92400e; }
+.st-prd-ip .st-dot { background: #f59e0b; }
+.st-prd-rdy { background: rgba(16,185,129,.12); color: #065f46; }
+.st-prd-rdy .st-dot { background: #10b981; }
 
 /* Push tag */
 .push-tag {
