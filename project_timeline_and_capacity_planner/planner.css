@@ -305,9 +305,15 @@
 /* Selected (bulk) */
 .row-selected td { background: var(--accent-muted) !important; }
 
-/* Drag ghost */
-.row-dragging { opacity: 0.3; }
-.row-drop-target td { box-shadow: 0 -2px 0 0 var(--accent) inset !important; }
+/* Dragging row — faded ghost */
+.row-dragging { opacity: 0.25; pointer-events: none; }
+
+/* Drop target — prominent 3px accent line + subtle tint */
+.row-drop-target td {
+  background: rgba(22, 162, 104, 0.05) !important;
+  box-shadow: 0 -3px 0 0 var(--accent) inset !important;
+  transition: box-shadow 60ms, background 60ms;
+}
 
 /* ── Feature cell ── */
 .feat-cell {

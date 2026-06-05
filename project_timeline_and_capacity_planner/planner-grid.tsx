@@ -82,6 +82,18 @@ const ALL_ITEM_STATUSES = TASK_STATUSES;
 // ── Role colour class (index-based) ──────────────────────────────────────────
 const ROLE_EC_CLASS = ["ec-be", "ec-fw", "ec-fa", "ec-fi", "ec-qa"];
 
+/** Mix hex color with white to get a fully opaque solid tint (no transparency) */
+function solidTint(hex: string, alpha = 0.18): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const R = Math.round(255 * (1 - alpha) + r * alpha);
+  const G = Math.round(255 * (1 - alpha) + g * alpha);
+  const B = Math.round(255 * (1 - alpha) + b * alpha);
+  return `rgb(${R},${G},${B})`;
+}
+
 // ── ContextMenu ───────────────────────────────────────────────────────────────
 
 interface CtxState {
@@ -103,6 +115,17 @@ interface ContextMenuProps extends CtxState {
 
 function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName, onViewHistory, onArchive, onDelete, onChangeProject }: ContextMenuProps) {
   const [showProjPicker, setShowProjPicker] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [submenuFlipLeft, setSubmenuFlipLeft]   = useState(false);
+  const [submenuFlipUp,   setSubmenuFlipUp]     = useState(false);
+
+  useEffect(() => {
+    if (showProjPicker && menuRef.current) {
+      const r = menuRef.current.getBoundingClientRect();
+      setSubmenuFlipLeft(r.right + 200 > window.innerWidth);
+      setSubmenuFlipUp(r.bottom + projects.length * 36 > window.innerHeight);
+    }
+  }, [showProjPicker, projects.length]);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -114,10 +137,11 @@ function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName,
     return () => document.removeEventListener("mousedown", h);
   }, [onClose]);
 
-  const top = y + 220 > window.innerHeight ? y - 220 : y;
+  const top  = y + 220 > window.innerHeight ? y - 220 : y;
+  const left = x + 180 > window.innerWidth  ? x - 180 : x;
 
   return createPortal(
-    <div id="ctx-menu-inner" className="ctx-menu" style={{ position: "fixed", top, left: x }} onMouseDown={e => e.stopPropagation()}>
+    <div ref={menuRef} id="ctx-menu-inner" className="ctx-menu" style={{ position: "fixed", top, left }} onMouseDown={e => e.stopPropagation()}>
       <button className="ctx-item" onClick={() => { onEditName(); onClose(); }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Edit name
@@ -134,7 +158,10 @@ function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName,
           {showProjPicker && (
             <div
               style={{
-                position: "absolute", left: "100%", top: 0, zIndex: 1,
+                position: "absolute",
+                ...(submenuFlipLeft ? { right: "100%", left: "auto" } : { left: "100%" }),
+                ...(submenuFlipUp   ? { bottom: 0,    top:  "auto" } : { top: 0 }),
+                zIndex: 1,
                 background: "var(--surface-1)", border: "1px solid var(--border-strong)",
                 borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-lg)",
                 padding: 4, minWidth: 180,
@@ -397,9 +424,22 @@ export function PlannerGrid({
   };
 
   // ── Drag & Drop ────────────────────────────────────────────────────────────
-  const dragSrc = useRef<{ id: string; type: "project" | "task" } | null>(null);
-  const [draggingId, setDraggingId]     = useState<string | null>(null); // triggers re-render on drag end
+  const dragSrc       = useRef<{ id: string; type: "project" | "task" } | null>(null);
+  const scrollTimer   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const gridViewRef   = useRef<HTMLDivElement>(null);
+  const [draggingId,   setDraggingId]   = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  const stopAutoScroll = () => {
+    if (scrollTimer.current) { clearInterval(scrollTimer.current); scrollTimer.current = null; }
+  };
+
+  const startAutoScroll = (direction: "up" | "down", speed: number) => {
+    stopAutoScroll();
+    scrollTimer.current = setInterval(() => {
+      gridViewRef.current?.scrollBy(0, direction === "down" ? speed : -speed);
+    }, 16);
+  };
 
   const getProjectIndex = (id: string) =>
     [...projects].sort((a, b) => a.priority_order - b.priority_order).findIndex(p => p.id === id);
@@ -415,6 +455,19 @@ export function PlannerGrid({
   const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
     setDropTargetId(id);
+    // Auto-scroll near grid edges
+    const el = gridViewRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const zone = 64;
+    const y = e.clientY;
+    if (y < rect.top + zone) {
+      startAutoScroll("up",   Math.max(4, Math.round((zone - (y - rect.top))    / 6)));
+    } else if (y > rect.bottom - zone) {
+      startAutoScroll("down", Math.max(4, Math.round((zone - (rect.bottom - y)) / 6)));
+    } else {
+      stopAutoScroll();
+    }
   };
 
   const handleDrop = (e: React.DragEvent, targetId: string) => {
@@ -528,7 +581,7 @@ export function PlannerGrid({
       )}
 
       {/* Scrollable grid */}
-      <div className="grid-view">
+      <div className="grid-view" ref={gridViewRef}>
         <table className="planner-table">
           <thead>
             {/* Week headers */}
@@ -589,7 +642,7 @@ export function PlannerGrid({
                   <th
                     key={`${w}-${role.id}`}
                     className={cn("th-role", ri === 0 && "first")}
-                    style={{ color: role.color, background: `${role.color}18` }}
+                    style={{ color: role.color, background: solidTint(role.color) }}
                   >
                     {role.name}
                   </th>
@@ -628,7 +681,7 @@ export function PlannerGrid({
                   onDragStart={() => handleDragStart(id, "task")}
                   onDragOver={(e) => handleDragOver(e, id)}
                   onDrop={(e) => handleDrop(e, id)}
-                  onDragEnd={() => { setDropTargetId(null); setDraggingId(null); dragSrc.current = null; }}
+                  onDragEnd={() => { setDropTargetId(null); setDraggingId(null); dragSrc.current = null; stopAutoScroll(); }}
                 >
                   <td className="col-cb cb-cell">
                     <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(id)} />
@@ -973,7 +1026,7 @@ function GridToolbar({ dateRange, onDateRangeChange, roles }: {
         <button
           key={role.id}
           className="filter-chip active"
-          style={{ background: `${role.color}18`, borderColor: `${role.color}40`, color: role.color }}
+          style={{ background: solidTint(role.color), borderColor: `${role.color}60`, color: role.color }}
         >
           {role.name}
         </button>

@@ -10,6 +10,7 @@
 .app-main {
   display: flex;
   flex-direction: column;
+  height: 100%;     /* explicit height so children with height:100% resolve correctly */
   min-width: 0;
   min-height: 0;
   overflow: hidden;
