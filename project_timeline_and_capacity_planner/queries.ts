@@ -17,7 +17,32 @@ export async function fetchRoles(userId: string): Promise<Role[]> {
     .eq("user_id", userId)
     .order("display_order");
   if (error) throw error;
-  return data ?? [];
+  const all = data ?? [];
+  // Deduplicate by name — keep first occurrence (lowest display_order)
+  const seen = new Set<string>();
+  return all.filter(r => {
+    if (seen.has(r.name)) return false;
+    seen.add(r.name);
+    return true;
+  });
+}
+
+export async function deleteRoleDuplicates(userId: string): Promise<void> {
+  const { data } = await sb()
+    .from("planner_roles")
+    .select("id, name")
+    .eq("user_id", userId)
+    .order("display_order");
+  if (!data) return;
+  const seen = new Set<string>();
+  const idsToDelete: string[] = [];
+  for (const r of data) {
+    if (seen.has(r.name)) idsToDelete.push(r.id);
+    else seen.add(r.name);
+  }
+  if (idsToDelete.length > 0) {
+    await sb().from("planner_roles").delete().in("id", idsToDelete);
+  }
 }
 
 export async function seedDefaultRoles(userId: string): Promise<Role[]> {

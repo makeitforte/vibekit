@@ -10,7 +10,7 @@ import {
 } from "./types";
 import { HistoryEntry } from "./queries";
 import {
-  formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort,
+  formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta,
 } from "./utils";
 import { cn } from "@/lib/cn";
 
@@ -468,11 +468,7 @@ export function PlannerGrid({
   if (projects.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-        <GridToolbar
-        dateRange={dateRange} onDateRangeChange={onDateRangeChange}
-        roles={roles} projects={sortedProjects}
-        onAddTask={onAddTask} onAddProject={() => {}}
-      />
+        <GridToolbar dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles} />
         <div className="planner-empty" style={{ flex: 1 }}>
           <div className="planner-empty-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -487,11 +483,7 @@ export function PlannerGrid({
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Toolbar */}
-      <GridToolbar
-        dateRange={dateRange} onDateRangeChange={onDateRangeChange}
-        roles={roles} projects={sortedProjects}
-        onAddTask={onAddTask} onAddProject={() => {}}
-      />
+      <GridToolbar dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles} />
 
       {/* Cascade banner — shows when any role/week is below its min buffer threshold */}
       {thresholdBreachCount > 0 && (
@@ -708,7 +700,14 @@ export function PlannerGrid({
                       );
                     })()}
                   </td>
-                  <td className="col-eta eta-cell">{task.eta ? new Date(task.eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}</td>
+                  <td className="col-eta eta-cell">{(() => {
+                    // Show derived ETA (last effort week Friday) if no manual ETA set
+                    const derived = deriveTaskEta(task.id, effortMap);
+                    const eta = task.eta ?? derived;
+                    return eta
+                      ? new Date(eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                      : "—";
+                  })()}</td>
                   <td className="col-tot total-cell">{totalEffort > 0 ? totalEffort : "—"}</td>
                   {weeks.map((w) =>
                     roles.map((role, ri) => (
@@ -963,24 +962,13 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
 
 // ── Grid Toolbar ──────────────────────────────────────────────────────────────
 
-function GridToolbar({ dateRange, onDateRangeChange, roles, projects, onAddTask, onAddProject }: {
+function GridToolbar({ dateRange, onDateRangeChange, roles }: {
   dateRange: PlannerDateRange;
   onDateRangeChange: (r: PlannerDateRange) => void;
   roles: Role[];
-  projects: Project[];
-  onAddTask: (projectId: string) => void;
-  onAddProject: () => void;
 }) {
-  const [taskDropOpen, setTaskDropOpen] = useState(false);
   return (
     <div className="planner-toolbar">
-      <span className="toolbar-label">Filter</span>
-      {/* Status chips would go here */}
-      <button className="filter-chip active">All</button>
-      <button className="filter-chip">P1</button>
-      <button className="filter-chip">P2</button>
-      <button className="filter-chip">In Progress</button>
-      <div className="toolbar-sep" />
       {roles.map((role) => (
         <button
           key={role.id}
@@ -993,45 +981,6 @@ function GridToolbar({ dateRange, onDateRangeChange, roles, projects, onAddTask,
       <button className="filter-chip" style={{ borderStyle: "dashed" }}>
         <Plus size={10} /> Add role
       </button>
-
-      <div className="toolbar-sep" />
-      {/* Add task — project selector dropdown */}
-      <div style={{ position: "relative" }}>
-        <button
-          className="filter-chip"
-          style={{ borderStyle: "dashed", display: "flex", alignItems: "center", gap: 4 }}
-          onClick={() => setTaskDropOpen(v => !v)}
-        >
-          <Plus size={10} /> Add task
-        </button>
-        {taskDropOpen && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 500,
-            background: "var(--surface-1)", border: "1px solid var(--border-strong)",
-            borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-lg)",
-            padding: 4, minWidth: 180,
-          }}
-            onMouseLeave={() => setTaskDropOpen(false)}
-          >
-            <div style={{ padding: "5px 10px 3px", fontFamily: "var(--font-mono)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--fg-4)", borderBottom: "1px solid var(--border-subtle)", marginBottom: 4 }}>
-              Add task to…
-            </div>
-            {projects.length === 0 ? (
-              <div style={{ padding: "6px 10px", fontSize: 12, color: "var(--fg-4)" }}>No projects yet</div>
-            ) : projects.map(p => (
-              <div key={p.id}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: "var(--radius-sm)", cursor: "pointer", fontSize: 13, color: "var(--fg-2)", transition: "background 80ms" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-3)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "")}
-                onClick={() => { onAddTask(p.id); setTaskDropOpen(false); }}
-              >
-                {p.name}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       <div className="toolbar-right">
         <span className="toolbar-label">Start</span>
         <input

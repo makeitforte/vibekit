@@ -9,7 +9,7 @@ import {
   PlannerView, PlannerDateRange, EffortMap, CapacityMap,
 } from "./types";
 import {
-  fetchRoles, seedDefaultRoles,
+  fetchRoles, seedDefaultRoles, deleteRoleDuplicates,
   fetchProjects, createProject, updateProject, reorderProjects, archiveProject, deleteProject,
   fetchTasks, createTask, updateTask, reorderTasks, deleteTask,
   fetchWeeklyEfforts, upsertEffort, buildEffortMap,
@@ -133,6 +133,8 @@ export function PlannerShell() {
     if (!userId) return;
     (async () => {
       try {
+        // Clean up any duplicate roles before fetching
+        await deleteRoleDuplicates(userId);
         let roles = await fetchRoles(userId);
         if (roles.length === 0) roles = await seedDefaultRoles(userId);
 
