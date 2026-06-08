@@ -10,7 +10,7 @@ import {
 } from "./types";
 import { HistoryEntry } from "./queries";
 import {
-  formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta,
+  formatWeekEnd, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta,
 } from "./utils";
 import { cn } from "@/lib/cn";
 
@@ -410,12 +410,37 @@ export function PlannerGrid({
   const [editingName,       setEditingName]       = useState("");
   const [ctxMenu,           setCtxMenu]           = useState<CtxState | null>(null);
   const [taskPriTarget,     setTaskPriTarget]     = useState<{ rect: DOMRect; task: Task } | null>(null);
-  const [featColWidth,   setFeatColWidth]   = useState(240);
+  const [editingEtaId,      setEditingEtaId]      = useState<string | null>(null);
+  const [editingEtaValue,   setEditingEtaValue]   = useState("");
+  const [featColWidth,   setFeatColWidth]   = useState(260);
   const resizeDrag = useRef<{ startX: number; startW: number } | null>(null);
   // Computed offsets for dependent sticky cols
   const priLeft = 64 + featColWidth;
   const etaLeft = priLeft + 52;
   const totLeft = etaLeft + 76;
+
+  // Sticky summary rows must stack directly below the sticky header with no
+  // gap — measure actual rendered heights instead of guessing pixel values,
+  // since fonts/zoom can shift them and leave a visible seam.
+  const theadRef  = useRef<HTMLTableSectionElement>(null);
+  const sumRowRef = useRef<HTMLTableRowElement>(null);
+  const [sumRowMetrics, setSumRowMetrics] = useState({ topBase: 61, rowHeight: 33 });
+
+  useEffect(() => {
+    const measure = () => {
+      const topBase   = theadRef.current?.getBoundingClientRect().height;
+      const rowHeight = sumRowRef.current?.getBoundingClientRect().height;
+      if (!topBase || !rowHeight) return;
+      setSumRowMetrics(prev =>
+        (prev.topBase === topBase && prev.rowHeight === rowHeight) ? prev : { topBase, rowHeight }
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (theadRef.current)  ro.observe(theadRef.current);
+    if (sumRowRef.current) ro.observe(sumRowRef.current);
+    return () => ro.disconnect();
+  }, [roles, weeks, featColWidth]);
 
   const openCtx = (e: React.MouseEvent, id: string, type: "project" | "task", projectId: string, isArchived: boolean) => {
     e.preventDefault();
@@ -583,7 +608,7 @@ export function PlannerGrid({
       {/* Scrollable grid */}
       <div className="grid-view" ref={gridViewRef}>
         <table className="planner-table">
-          <thead>
+          <thead ref={theadRef}>
             {/* Week headers */}
             <tr className="thead-week">
               <th className="col-cb th-sticky" />
@@ -625,7 +650,7 @@ export function PlannerGrid({
               <th className="col-tot th-sticky th-col-header center" style={{ left: totLeft }}>Total<br /><span style={{ fontSize: 9 }}>effort</span></th>
               {weeks.map((w, i) => (
                 <th key={w} colSpan={roles.length} className={cn("th-week-group", i === 0 && "first")}>
-                  <span className="th-week-date">{formatWeekRange(w)}</span>
+                  <span className="th-week-date">{formatWeekEnd(w)}</span>
                 </th>
               ))}
             </tr>
@@ -660,6 +685,13 @@ export function PlannerGrid({
               capacityMap={capacityMap}
               effortMap={effortMap}
               onUpsertCapacity={onUpsertCapacity}
+              featColWidth={featColWidth}
+              priLeft={priLeft}
+              etaLeft={etaLeft}
+              totLeft={totLeft}
+              topBase={sumRowMetrics.topBase}
+              rowHeight={sumRowMetrics.rowHeight}
+              firstRowRef={sumRowRef}
             />
 
             {/* ── Flat task list (Option A) ── */}
@@ -687,55 +719,56 @@ export function PlannerGrid({
                     <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(id)} />
                   </td>
                   <td className="col-drag drag-handle">⠿</td>
-                  <td className="col-feat">
-                    <div className="feat-cell" style={{ gap: 6 }}>
-                      {/* Project badge */}
-                      {proj && (
-                        <span
-                          title={proj.name}
-                          style={{
-                            fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 600,
-                            padding: "1px 6px", borderRadius: "var(--radius-full)",
-                            background: projColor.bg, border: `1px solid ${projColor.border}`,
-                            color: projColor.text, whiteSpace: "nowrap", flexShrink: 0,
-                            maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", cursor: "pointer",
-                          }}
-                          onClick={() => onRowHistoryClick(proj.id)}
+                  <td className="col-feat" style={{ width: featColWidth, minWidth: featColWidth, left: 64 }}>
+                    <div className="feat-cell feat-cell-stacked">
+                      {/* Line 1 — task name gets the full row width to itself */}
+                      <div className="feat-line-name">
+                        {editingId === task.id ? (
+                          <input
+                            autoFocus
+                            className="feat-name"
+                            style={{ background: "transparent", border: "none", outline: "1px solid var(--accent-border)", borderRadius: 3, padding: "0 2px", fontSize: 12.5, flex: 1, minWidth: 0, maxWidth: "none", color: "var(--fg-2)" }}
+                            value={editingName}
+                            onChange={e => setEditingName(e.target.value)}
+                            onBlur={() => { if (editingName.trim()) onUpdateTask(task.id, { name: editingName.trim() }); setEditingId(null); }}
+                            onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingId(null); }}
+                            onClick={e => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span className="feat-name feat-name-full"
+                            onDoubleClick={e => { e.stopPropagation(); setEditingId(task.id); setEditingName(task.name); }}
+                            title={task.name}>
+                            {task.name}
+                          </span>
+                        )}
+                      </div>
+                      {/* Line 2 — project badge + status, each with their own room to breathe */}
+                      <div className="feat-line-meta">
+                        {proj && (
+                          <span
+                            title={proj.name}
+                            className="proj-badge"
+                            style={{
+                              background: projColor.bg, border: `1px solid ${projColor.border}`,
+                              color: projColor.text,
+                            }}
+                            onClick={() => onRowHistoryClick(proj.id)}
+                          >
+                            {proj.name}
+                          </span>
+                        )}
+                        <button
+                          className={cn("inline-status", STATUS_CSS[task.status])}
+                          onClick={e => { e.stopPropagation(); setStatusTarget({ rect: e.currentTarget.getBoundingClientRect(), id, type: "task" }); }}
                         >
-                          {proj.name}
-                        </span>
-                      )}
-                      {/* Task name */}
-                      {editingId === task.id ? (
-                        <input
-                          autoFocus
-                          className="feat-name"
-                          style={{ background: "transparent", border: "none", outline: "1px solid var(--accent-border)", borderRadius: 3, padding: "0 2px", fontSize: 12.5, flex: 1, minWidth: 0, color: "var(--fg-2)" }}
-                          value={editingName}
-                          onChange={e => setEditingName(e.target.value)}
-                          onBlur={() => { if (editingName.trim()) onUpdateTask(task.id, { name: editingName.trim() }); setEditingId(null); }}
-                          onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingId(null); }}
-                          onClick={e => e.stopPropagation()}
-                        />
-                      ) : (
-                        <span className="feat-name"
-                          onDoubleClick={e => { e.stopPropagation(); setEditingId(task.id); setEditingName(task.name); }}
-                          title={task.name}>
-                          {task.name}
-                        </span>
-                      )}
-                      {/* Inline status */}
-                      <button
-                        className={cn("inline-status", STATUS_CSS[task.status])}
-                        onClick={e => { e.stopPropagation(); setStatusTarget({ rect: e.currentTarget.getBoundingClientRect(), id, type: "task" }); }}
-                      >
-                        <span className="st-dot" style={{ background: STATUS_DOT_COLOR[task.status] }} />
-                        {STATUS_LABEL[task.status]}
-                      </button>
+                          <span className="st-dot" style={{ background: STATUS_DOT_COLOR[task.status] }} />
+                          {STATUS_LABEL[task.status]}
+                        </button>
+                      </div>
                     </div>
                   </td>
                   {/* Priority — per-task label, clickable */}
-                  <td className="col-pri" style={{ padding: "0 6px" }}>
+                  <td className="col-pri" style={{ padding: "0 6px", left: priLeft }}>
                     {(() => {
                       // Resolve: task's own label takes precedence, fallback to project's
                       const label: "P1"|"P2"|"P3" = task.priority_label
@@ -753,15 +786,66 @@ export function PlannerGrid({
                       );
                     })()}
                   </td>
-                  <td className="col-eta eta-cell">{(() => {
-                    // Show derived ETA (last effort week Friday) if no manual ETA set
+                  <td className="col-eta eta-cell" style={{ left: etaLeft }}>{(() => {
+                    // Show derived ETA (last effort week Friday) unless a manual ETA overrides it
                     const derived = deriveTaskEta(task.id, effortMap);
                     const eta = task.eta ?? derived;
-                    return eta
-                      ? new Date(eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                      : "—";
+                    const isManual = !!task.eta;
+
+                    if (editingEtaId === task.id) {
+                      return (
+                        <input
+                          type="date"
+                          autoFocus
+                          className="eta-edit-input"
+                          value={editingEtaValue}
+                          onChange={e => setEditingEtaValue(e.target.value)}
+                          onClick={e => e.stopPropagation()}
+                          onBlur={() => {
+                            const before = task.eta ?? "";
+                            const next = editingEtaValue;
+                            setEditingEtaId(null);
+                            if (next === before) return;
+                            onUpdateTask(task.id, { eta: next || null }, {
+                              project_id: task.project_id,
+                              task_id: task.id,
+                              change_type: "eta_change",
+                              field_name: "eta",
+                              old_value: before || "auto",
+                              new_value: next || "auto",
+                              notes: task.name,
+                            });
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                            if (e.key === "Escape") setEditingEtaId(null);
+                          }}
+                        />
+                      );
+                    }
+
+                    return (
+                      <span
+                        className="eta-display"
+                        title={
+                          eta
+                            ? isManual
+                              ? "Manually set — double-click to change, clear to go back to auto"
+                              : "Auto-derived from the last week with effort allocated — double-click to override"
+                            : "Double-click to set an ETA"
+                        }
+                        onDoubleClick={e => {
+                          e.stopPropagation();
+                          setEditingEtaValue(task.eta ?? derived ?? "");
+                          setEditingEtaId(task.id);
+                        }}
+                      >
+                        {eta ? new Date(eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
+                        {isManual && <span className="eta-manual-dot" />}
+                      </span>
+                    );
                   })()}</td>
-                  <td className="col-tot total-cell">{totalEffort > 0 ? totalEffort : "—"}</td>
+                  <td className="col-tot total-cell" style={{ left: totLeft }}>{totalEffort > 0 ? totalEffort : "—"}</td>
                   {weeks.map((w) =>
                     roles.map((role, ri) => (
                       <EffortInput key={`${w}-${role.id}`}
@@ -873,9 +957,26 @@ interface SummaryRowsProps {
   capacityMap: CapacityMap;
   effortMap: EffortMap;
   onUpsertCapacity: Props["onUpsertCapacity"];
+  /** Live sticky-column geometry — must match the header/body cells exactly or the columns drift apart on horizontal scroll. */
+  featColWidth: number;
+  priLeft: number;
+  etaLeft: number;
+  totLeft: number;
+  /** Measured height of the sticky thead — first summary row sticks right below it. */
+  topBase: number;
+  /** Measured height of a summary row — each subsequent row stacks by this amount. */
+  rowHeight: number;
+  /** Attached to the first row so its rendered height can be measured. */
+  firstRowRef: React.RefObject<HTMLTableRowElement | null>;
 }
 
-function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpsertCapacity }: SummaryRowsProps) {
+function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpsertCapacity, featColWidth, priLeft, etaLeft, totLeft, topBase, rowHeight, firstRowRef }: SummaryRowsProps) {
+  const topFor = (i: number) => topBase + i * rowHeight;
+
+  const featStyle: React.CSSProperties = { width: featColWidth, minWidth: featColWidth, left: 64 };
+  const priStyle:  React.CSSProperties = { left: priLeft };
+  const etaStyle:  React.CSSProperties = { left: etaLeft };
+  const totStyle:  React.CSSProperties = { left: totLeft };
 
   const emptySticky = (
     <>
@@ -886,11 +987,11 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
 
   return (
     <>
-      {/* Capacity — top = thead-week(33) + thead-role(28) = 61px */}
-      <tr className="row-sum" style={{ top: 61 }}>
+      {/* Capacity — sticks directly below the header; top measured at runtime */}
+      <tr ref={firstRowRef} className="row-sum" style={{ top: topFor(0) }}>
         {emptySticky}
-        <td className="col-feat" style={{ padding: "0 10px" }}><span className="sum-label">Capacity (mandays)</span></td>
-        <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
+        <td className="col-feat" style={{ ...featStyle, padding: "0 10px" }}><span className="sum-label">Capacity (mandays)</span></td>
+        <td className="col-pri" style={priStyle} /><td className="col-eta" style={etaStyle} /><td className="col-tot" style={totStyle} />
         {weeks.map((w, wi) =>
           roles.map((role, ri) => {
             const cap = capacityMap[role.id]?.[w];
@@ -906,13 +1007,13 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Total Required — 61 + 33 */}
-      <tr className="row-sum row-sum-req" style={{ top: 94 }}>
+      {/* Total Required */}
+      <tr className="row-sum row-sum-req" style={{ top: topFor(1) }}>
         {emptySticky}
-        <td className="col-feat" style={{ padding: "0 10px" }}>
+        <td className="col-feat" style={{ ...featStyle, padding: "0 10px" }}>
           <span className="sum-label sum-label-req">Total Required</span>
         </td>
-        <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
+        <td className="col-pri" style={priStyle} /><td className="col-eta" style={etaStyle} /><td className="col-tot" style={totStyle} />
         {weeks.map((w, wi) =>
           roles.map((role, ri) => {
             const req = allTaskIds.reduce((s, tid) => s + (effortMap[tid]?.[role.id]?.[w] ?? 0), 0);
@@ -925,11 +1026,11 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Taken — 94 + 33 */}
-      <tr className="row-sum" style={{ top: 127 }}>
+      {/* Taken */}
+      <tr className="row-sum" style={{ top: topFor(2) }}>
         {emptySticky}
-        <td className="col-feat" style={{ padding: "0 10px" }}><span className="sum-label">Taken (other squad)</span></td>
-        <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
+        <td className="col-feat" style={{ ...featStyle, padding: "0 10px" }}><span className="sum-label">Taken (other squad)</span></td>
+        <td className="col-pri" style={priStyle} /><td className="col-eta" style={etaStyle} /><td className="col-tot" style={totStyle} />
         {weeks.map((w, wi) =>
           roles.map((role, ri) => {
             const cap = capacityMap[role.id]?.[w];
@@ -945,11 +1046,11 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Holiday — 127 + 33 */}
-      <tr className="row-sum" style={{ top: 160 }}>
+      {/* Holiday */}
+      <tr className="row-sum" style={{ top: topFor(3) }}>
         {emptySticky}
-        <td className="col-feat" style={{ padding: "0 10px" }}><span className="sum-label">Holiday / Day-off</span></td>
-        <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
+        <td className="col-feat" style={{ ...featStyle, padding: "0 10px" }}><span className="sum-label">Holiday / Day-off</span></td>
+        <td className="col-pri" style={priStyle} /><td className="col-eta" style={etaStyle} /><td className="col-tot" style={totStyle} />
         {weeks.map((w, wi) =>
           roles.map((role, ri) => {
             const cap = capacityMap[role.id]?.[w];
@@ -966,11 +1067,11 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Buffer / Shortage — 160 + 33 */}
-      <tr className="row-sum" style={{ top: 193 }}>
+      {/* Buffer / Shortage */}
+      <tr className="row-sum" style={{ top: topFor(4) }}>
         {emptySticky}
-        <td className="col-feat" style={{ padding: "0 10px" }}><span className="sum-label">Buffer / Shortage</span></td>
-        <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
+        <td className="col-feat" style={{ ...featStyle, padding: "0 10px" }}><span className="sum-label">Buffer / Shortage</span></td>
+        <td className="col-pri" style={priStyle} /><td className="col-eta" style={etaStyle} /><td className="col-tot" style={totStyle} />
         {weeks.map((w, wi) =>
           roles.map((role, ri) => {
             const s = computeWeekRoleSummary(role.id, w, capacityMap, effortMap, allTaskIds);
@@ -986,14 +1087,14 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
         )}
       </tr>
 
-      {/* Min Buffer Threshold — 193 + 33 */}
-      <tr className="row-sum row-sum-thr row-sum-last" style={{ top: 226 }}>
+      {/* Min Buffer Threshold */}
+      <tr className="row-sum row-sum-thr row-sum-last" style={{ top: topFor(5) }}>
         {emptySticky}
-        <td className="col-feat" style={{ padding: "0 10px" }}>
+        <td className="col-feat" style={{ ...featStyle, padding: "0 10px" }}>
           <span className="sum-label sum-label-thr">Min Buffer Threshold</span>
           <span className="sum-note">cascade trigger ↓</span>
         </td>
-        <td className="col-pri" /><td className="col-eta" /><td className="col-tot" />
+        <td className="col-pri" style={priStyle} /><td className="col-eta" style={etaStyle} /><td className="col-tot" style={totStyle} />
         {weeks.map((w, wi) =>
           roles.map((role, ri) => {
             const cap = capacityMap[role.id]?.[w];

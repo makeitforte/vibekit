@@ -23,7 +23,10 @@ export type ChangeType =
   | "project_created"
   | "task_created"
   | "project_archived"
-  | "project_restored";
+  | "project_restored"
+  | "project_deleted"
+  | "task_deleted"
+  | "eta_change";
 
 export interface Role {
   id: string;
@@ -91,6 +94,7 @@ export interface ResourceCapacity {
 export interface ChangeHistory {
   id: string;
   user_id: string;
+  owner_id: string;
   project_id: string | null;
   task_id: string | null;
   change_type: ChangeType;
@@ -102,6 +106,25 @@ export interface ChangeHistory {
   // joined
   project_name?: string;
   task_name?: string;
+}
+
+export type SharePermission = "view" | "edit";
+
+export interface BoardShare {
+  id: string;
+  owner_id: string;
+  token: string;
+  permission: SharePermission;
+  created_at: string;
+  revoked_at: string | null;
+}
+
+export interface BoardMember {
+  id: string;
+  owner_id: string;
+  member_id: string;
+  permission: SharePermission;
+  joined_at: string;
 }
 
 // ── View types ────────────────────────────────────────────────────────────────

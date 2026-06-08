@@ -4,9 +4,18 @@ import { createClient } from "@/lib/supabase/client";
 import {
   Role, Project, Task, WeeklyEffort, ResourceCapacity, ChangeHistory,
   ChangeType, DEFAULT_ROLES, EffortMap, CapacityMap,
+  BoardShare, BoardMember, SharePermission,
 } from "./types";
 
 const sb = () => createClient();
+
+/** Thrown by optimistic-locked updates when the row changed since it was loaded (concurrent edit). */
+export class ConflictError extends Error {
+  constructor(entity: string) {
+    super(`${entity} was changed by someone else`);
+    this.name = "ConflictError";
+  }
+}
 
 // ── Roles ─────────────────────────────────────────────────────────────────────
 
@@ -99,9 +108,14 @@ export async function createProject(
 export async function updateProject(
   id: string,
   patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label" | "is_archived">>,
+  /** Pass the row's currently-loaded `updated_at` to guard against overwriting a concurrent edit. */
+  expectedUpdatedAt?: string,
 ): Promise<void> {
-  const { error } = await sb().from("planner_projects").update(patch).eq("id", id);
+  const base = sb().from("planner_projects").update(patch).eq("id", id);
+  const query = expectedUpdatedAt ? base.eq("updated_at", expectedUpdatedAt) : base;
+  const { data, error } = await query.select("id");
   if (error) throw error;
+  if (expectedUpdatedAt && (data?.length ?? 0) === 0) throw new ConflictError("Project");
 }
 
 export async function deleteProject(id: string): Promise<void> {
@@ -169,9 +183,14 @@ export async function createTask(
 export async function updateTask(
   id: string,
   patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "links" | "priority_order" | "project_id" | "priority_label">>,
+  /** Pass the row's currently-loaded `updated_at` to guard against overwriting a concurrent edit. */
+  expectedUpdatedAt?: string,
 ): Promise<void> {
-  const { error } = await sb().from("planner_tasks").update(patch).eq("id", id);
+  const base = sb().from("planner_tasks").update(patch).eq("id", id);
+  const query = expectedUpdatedAt ? base.eq("updated_at", expectedUpdatedAt) : base;
+  const { data, error } = await query.select("id");
   if (error) throw error;
+  if (expectedUpdatedAt && (data?.length ?? 0) === 0) throw new ConflictError("Task");
 }
 
 export async function reorderTasks(
@@ -296,14 +315,15 @@ export function buildCapacityMap(capacities: ResourceCapacity[]): CapacityMap {
 
 // ── Change history ────────────────────────────────────────────────────────────
 
+/** `ownerId` is the board being viewed — history is scoped to the board, not the actor, so collaborators' entries are included too. */
 export async function fetchHistory(
-  userId: string,
+  ownerId: string,
   projectId?: string,
 ): Promise<ChangeHistory[]> {
   let q = sb()
     .from("planner_change_history")
     .select("*, planner_projects(name), planner_tasks(name)")
-    .eq("user_id", userId)
+    .eq("owner_id", ownerId)
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -329,12 +349,108 @@ export interface HistoryEntry {
   notes?: string;
 }
 
+/** `actorId` = who performed the action; `ownerId` = whose board it happened on (may differ for collaborators). */
 export async function addHistory(
-  userId: string,
+  actorId: string,
+  ownerId: string,
   entry: HistoryEntry,
 ): Promise<void> {
   const { error } = await sb()
     .from("planner_change_history")
-    .insert({ user_id: userId, ...entry });
+    .insert({ user_id: actorId, owner_id: ownerId, ...entry });
   if (error) console.error("history insert error", error);
+}
+
+// ── Board sharing ─────────────────────────────────────────────────────────────
+
+/** Active (non-revoked) share links the current user has generated for their board. */
+export async function fetchBoardShares(ownerId: string): Promise<BoardShare[]> {
+  const { data, error } = await sb()
+    .from("board_shares")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .is("revoked_at", null)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Generates a new shareable link for the caller's board with the given permission. */
+export async function createBoardShare(ownerId: string, permission: SharePermission): Promise<BoardShare> {
+  const token = crypto.randomUUID().replace(/-/g, "");
+  const { data, error } = await sb()
+    .from("board_shares")
+    .insert({ owner_id: ownerId, token, permission })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Revokes a share link — anyone holding the link loses access from this point on. */
+export async function revokeBoardShare(id: string): Promise<void> {
+  const { error } = await sb()
+    .from("board_shares")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/** People who currently have access to the caller's board via a redeemed share link. */
+export async function fetchBoardMembers(ownerId: string): Promise<BoardMember[]> {
+  const { data, error } = await sb()
+    .from("board_members")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .order("joined_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/** Owner removes a collaborator's access to their board. */
+export async function removeBoardMember(id: string): Promise<void> {
+  const { error } = await sb().from("board_members").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Redeems a share token: validates it, joins the caller to that board as a member,
+ * and returns the board owner's id + the permission granted. Throws if the token
+ * is invalid/revoked, or if the caller is trying to join their own board.
+ */
+export async function redeemBoardShare(token: string): Promise<{ ownerId: string; permission: SharePermission }> {
+  const { data, error } = await sb().rpc("redeem_board_share", { p_token: token });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error("Share link could not be redeemed");
+  return { ownerId: row.owner_id, permission: row.permission };
+}
+
+/** Boards the current user has joined as a collaborator (not their own). */
+export async function fetchMyBoardMemberships(memberId: string): Promise<BoardMember[]> {
+  const { data, error } = await sb()
+    .from("board_members")
+    .select("*")
+    .eq("member_id", memberId)
+    .order("joined_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export interface MemberProfile {
+  id: string;
+  name: string;
+  initials: string;
+  color: string;
+}
+
+/** Resolves raw member-id UUIDs to display profiles (name/initials/color) for the share dialog. */
+export async function fetchProfilesByIds(ids: string[]): Promise<MemberProfile[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await sb()
+    .from("profiles")
+    .select("id, name, initials, color")
+    .in("id", ids);
+  if (error) throw error;
+  return data ?? [];
 }

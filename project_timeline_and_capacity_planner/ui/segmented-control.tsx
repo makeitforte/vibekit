@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import { Lock } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface Option {
@@ -8,6 +9,9 @@ interface Option {
   label: string;
   icon?: ReactNode;
   badge?: number;
+  disabled?: boolean;
+  /** Shown as a tooltip when the option is disabled. */
+  disabledReason?: string;
 }
 
 interface Props {
@@ -23,11 +27,14 @@ export function SegmentedControl({ options, value, onChange }: Props) {
         <button
           key={opt.id}
           type="button"
-          className={cn("seg-btn", value === opt.id && "active")}
-          onClick={() => onChange(opt.id)}
+          className={cn("seg-btn", value === opt.id && "active", opt.disabled && "disabled")}
+          disabled={opt.disabled}
+          title={opt.disabled ? (opt.disabledReason ?? "Coming soon") : undefined}
+          onClick={() => { if (!opt.disabled) onChange(opt.id); }}
         >
           {opt.icon && <span style={{ display: "inline-flex", verticalAlign: "middle", marginRight: 4 }}>{opt.icon}</span>}
           {opt.label}
+          {opt.disabled && <Lock size={9} style={{ marginLeft: 4, verticalAlign: "middle" }} />}
           {opt.badge !== undefined && opt.badge > 0 && (
             <span style={{
               marginLeft: 5,

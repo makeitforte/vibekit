@@ -40,6 +40,13 @@ export function formatWeekRange(weekStart: string): string {
   return `${startMonth} ${start.getDate()}–${endMonth} ${end.getDate()}, ${year}`;
 }
 
+/** Just the last day of the week (Friday) — e.g. "Jun 12, 2026" */
+export function formatWeekEnd(weekStart: string): string {
+  const end = new Date(weekStart + "T00:00:00");
+  end.setDate(end.getDate() + 4);
+  return end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 /** Parse "YYYY-MM-DD" safely without timezone shifts */
 export function parseLocalDate(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);

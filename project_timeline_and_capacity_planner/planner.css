@@ -146,10 +146,12 @@
 /* Sticky columns — cb=36, drag=28, feat=240 (resizable via inline style on th), pri=52, eta=76, tot=64 */
 .col-cb   { width: 36px;  min-width: 36px;  position: sticky; left: 0px;   z-index: 12; }
 .col-drag { width: 28px;  min-width: 28px;  position: sticky; left: 36px;  z-index: 12; }
-.col-feat { width: 240px; min-width: 240px; position: sticky; left: 64px;  z-index: 12; }
-.col-pri  { width: 52px;  min-width: 52px;  position: sticky; left: 304px; z-index: 12; }
-.col-eta  { width: 76px;  min-width: 76px;  position: sticky; left: 356px; z-index: 12; }
-.col-tot  { width: 64px;  min-width: 64px;  position: sticky; left: 432px; z-index: 12; }
+/* feat/pri/eta/tot left & width are overridden inline per-cell (see featColWidth/priLeft/etaLeft/totLeft
+   in planner-grid.tsx) since the feature column is resizable — these are just the initial-paint fallback. */
+.col-feat { width: 260px; min-width: 260px; position: sticky; left: 64px;  z-index: 12; }
+.col-pri  { width: 52px;  min-width: 52px;  position: sticky; left: 324px; z-index: 12; }
+.col-eta  { width: 76px;  min-width: 76px;  position: sticky; left: 376px; z-index: 12; }
+.col-tot  { width: 64px;  min-width: 64px;  position: sticky; left: 452px; z-index: 12; }
 .col-tot::after {
   content: '';
   position: absolute;
@@ -290,7 +292,7 @@
 .row-task td {
   background: var(--surface-1) !important;
   border-bottom: 1px solid var(--border-subtle);
-  height: 34px;
+  height: 46px;
 }
 
 /* Sticky cells MUST have opaque solid background.
@@ -311,8 +313,10 @@
 .row-task    .col-pri,.row-task    .col-eta,  .row-task    .col-tot  { background-color: var(--surface-1) !important; }
 .row-task:hover .col-cb,.row-task:hover .col-drag,.row-task:hover .col-feat,
 .row-task:hover .col-pri,.row-task:hover .col-eta,.row-task:hover .col-tot { background-color: var(--surface-3) !important; }
+/* Solid equivalent of --accent-muted (rgba(22,162,104,.10) over white) —
+   translucent backgrounds let scrolled-away timeline cells bleed through sticky columns. */
 .row-selected .col-cb,.row-selected .col-drag,.row-selected .col-feat,
-.row-selected .col-pri,.row-selected .col-eta,.row-selected .col-tot { background-color: var(--accent-muted) !important; }
+.row-selected .col-pri,.row-selected .col-eta,.row-selected .col-tot { background-color: #e8f6f0 !important; }
 
 /* Hover */
 .row-project:hover td,
@@ -340,6 +344,38 @@
   position: relative;
   overflow: hidden;
 }
+/* Stacked layout — task name owns its own line so it never competes for
+   width with the project badge or status pill (which used to overlap or
+   get clipped in narrow columns). */
+.feat-cell-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 3px;
+  padding: 5px 12px;
+}
+.feat-line-name { display: flex; min-width: 0; }
+.feat-line-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.proj-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  flex-shrink: 1;
+  display: inline-block;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  vertical-align: middle;
+}
 .proj-icon {
   width: 15px;
   height: 15px;
@@ -355,12 +391,12 @@
   color: var(--fg-1);
   font-size: 12.5px;
   white-space: nowrap;
-  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
 }
+.feat-name-full { max-width: none; }
 .row-project .feat-name { font-weight: 600; }
 .row-task .feat-name    { color: var(--fg-2); padding-left: 8px; }
 
@@ -462,6 +498,36 @@
   font-size: 11px;
   color: var(--fg-3);
   white-space: nowrap;
+}
+.eta-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+.eta-display:hover {
+  background: var(--surface-3);
+}
+.eta-manual-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background: var(--accent-text);
+  flex-shrink: 0;
+}
+.eta-edit-input {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-1);
+  background: var(--surface-1);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  outline: none;
+  width: 124px;
 }
 .total-cell {
   padding: 0 8px;
@@ -792,6 +858,25 @@ td { padding: 0; height: 34px; vertical-align: middle; }
   color: var(--fg-4);
   border: 1px solid var(--border-subtle);
   padding: 1px 6px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.history-actor-chip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-3);
+  color: var(--fg-3);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 6px 1px 4px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.history-actor-dot {
+  width: 6px;
+  height: 6px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }

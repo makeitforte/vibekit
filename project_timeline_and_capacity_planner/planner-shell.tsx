@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useReducer, useCallback, useRef } from "react";
-import { LayoutGrid, GitBranch, Archive, History, Plus, Download, X } from "lucide-react";
+import { useEffect, useReducer, useCallback, useRef, useState } from "react";
+import { LayoutGrid, GitBranch, Archive, History, Plus, Download, X, Share2 } from "lucide-react";
 import { useProfiles } from "@/lib/profiles-context";
 
 import {
@@ -14,7 +14,7 @@ import {
   fetchTasks, createTask, updateTask, reorderTasks, deleteTask,
   fetchWeeklyEfforts, upsertEffort, buildEffortMap,
   fetchResourceCapacity, upsertCapacity, buildCapacityMap,
-  fetchHistory, addHistory, type HistoryEntry,
+  fetchHistory, addHistory, type HistoryEntry, ConflictError,
 } from "./queries";
 import { getWeekStarts, toWeekStart, formatWeekRange, runCascadeRecalculate } from "./utils";
 import { PlannerGrid } from "./planner-grid";
@@ -23,6 +23,7 @@ import { exportToXlsx } from "./export-xlsx";
 import { PlannerTimeline } from "./planner-timeline";
 import { PlannerArchive } from "./planner-archive";
 import { HistoryPanel } from "./history-panel";
+import { ShareDialog } from "./share-dialog";
 import { SegmentedControl } from "./ui/segmented-control";
 import { Button } from "./ui/button";
 
@@ -123,27 +124,52 @@ const INITIAL: PlannerState = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function PlannerShell() {
+interface PlannerShellProps {
+  /** When viewing someone else's shared board, their user id — all data is scoped to this id. Defaults to the signed-in user (their own board). */
+  boardOwnerId?: string;
+}
+
+export function PlannerShell({ boardOwnerId }: PlannerShellProps = {}) {
   const { user } = useProfiles();
   const [state, dispatch] = useReducer(reducer, INITIAL);
   const userId = user?.id ?? null;
+  // The board being displayed — your own board, or someone else's if you've joined via a share link.
+  // `userId` always identifies the ACTOR (who performed an action, for history attribution);
+  // `boardId` identifies whose data is being read/written.
+  const boardId = boardOwnerId ?? userId;
+  const isOwnBoard = boardId === userId;
+
+  const [shareOpen, setShareOpen] = useState(false);
+
+  // Surfaces "someone else changed this row" conflicts from optimistic-locked updates.
+  const [conflictMsg, setConflictMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!conflictMsg) return;
+    const t = setTimeout(() => setConflictMsg(null), 6000);
+    return () => clearTimeout(t);
+  }, [conflictMsg]);
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
     (async () => {
       try {
-        // Clean up any duplicate roles before fetching
-        await deleteRoleDuplicates(userId);
-        let roles = await fetchRoles(userId);
-        if (roles.length === 0) roles = await seedDefaultRoles(userId);
+        let roles: Role[];
+        if (isOwnBoard) {
+          // Clean up any duplicate roles before fetching — only meaningful for your own board
+          await deleteRoleDuplicates(boardId);
+          roles = await fetchRoles(boardId);
+          if (roles.length === 0) roles = await seedDefaultRoles(boardId);
+        } else {
+          roles = await fetchRoles(boardId);
+        }
 
         const [projects, tasks, efforts, capacities, history] = await Promise.all([
-          fetchProjects(userId),
-          fetchTasks(userId),
-          fetchWeeklyEfforts(userId),
-          fetchResourceCapacity(userId),
-          fetchHistory(userId),
+          fetchProjects(boardId),
+          fetchTasks(boardId),
+          fetchWeeklyEfforts(boardId),
+          fetchResourceCapacity(boardId),
+          fetchHistory(boardId),
         ]);
 
         dispatch({ type: "LOADED", roles, projects, tasks, efforts, capacities, history });
@@ -151,7 +177,7 @@ export function PlannerShell() {
         dispatch({ type: "SET_ERROR", error: (e as Error).message });
       }
     })();
-  }, [userId]);
+  }, [userId, boardId, isOwnBoard]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const weeks = getWeekStarts(state.dateRange);
@@ -161,77 +187,89 @@ export function PlannerShell() {
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleAddProject = useCallback(async (name: string) => {
-    if (!userId || !name.trim()) return;
+    if (!userId || !boardId || !name.trim()) return;
     const order = activeProjects.length;
-    const proj = await createProject(userId, name.trim(), order);
+    const proj = await createProject(boardId, name.trim(), order);
     dispatch({ type: "SET_PROJECTS", projects: [...state.projects, proj] });
-    await addHistory(userId, { project_id: proj.id, change_type: "project_created", new_value: name.trim() });
-  }, [userId, activeProjects.length, state.projects]);
+    await addHistory(userId, boardId, { project_id: proj.id, change_type: "project_created", new_value: name.trim() });
+  }, [userId, boardId, activeProjects.length, state.projects]);
 
   const handleUpdateProject = useCallback(async (
     id: string,
     patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label">>,
     historyEntry?: HistoryEntry,
   ) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
+    const before = state.projects.find(p => p.id === id);
     // Optimistic update first so UI responds immediately
     const updated = state.projects.map(p => p.id === id ? { ...p, ...patch } : p);
     dispatch({ type: "SET_PROJECTS", projects: updated });
-    // Persist to DB (errors are silent for now — could add toast)
     try {
-      await updateProject(id, patch);
+      await updateProject(id, patch, before?.updated_at);
     } catch (e) {
-      // Revert on failure
-      dispatch({ type: "SET_PROJECTS", projects: state.projects });
-      console.error("updateProject failed", e);
+      if (e instanceof ConflictError) {
+        // Someone else changed this row first — discard our edit and reload the real data.
+        dispatch({ type: "SET_PROJECTS", projects: await fetchProjects(boardId) });
+        setConflictMsg(`"${before?.name ?? "Project"}" was just updated by someone else — your change was discarded and the latest data was reloaded.`);
+      } else {
+        dispatch({ type: "SET_PROJECTS", projects: state.projects });
+        console.error("updateProject failed", e);
+      }
       return;
     }
     if (historyEntry) {
-      await addHistory(userId, historyEntry);
-      const history = await fetchHistory(userId);
+      await addHistory(userId, boardId, historyEntry);
+      const history = await fetchHistory(boardId);
       dispatch({ type: "SET_HISTORY", history });
     }
-  }, [userId, state.projects]);
+  }, [userId, boardId, state.projects]);
 
   const handleAddTask = useCallback(async (projectId: string, taskName?: string) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
     const name = taskName ?? window.prompt("Task name:");
     if (!name?.trim()) return;
     const maxOrder = state.tasks.length;
-    const task = await createTask(userId, projectId, name.trim(), maxOrder + 1);
+    const task = await createTask(boardId, projectId, name.trim(), maxOrder + 1);
     dispatch({ type: "SET_TASKS", tasks: [...state.tasks, task] });
-    await addHistory(userId, { project_id: projectId, task_id: task.id, change_type: "task_created", new_value: name.trim() });
-  }, [userId, state.tasks]);
+    await addHistory(userId, boardId, { project_id: projectId, task_id: task.id, change_type: "task_created", new_value: name.trim() });
+  }, [userId, boardId, state.tasks]);
 
   const handleUpdateTask = useCallback(async (
     id: string,
     patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "links" | "priority_order" | "project_id" | "priority_label">>,
     historyEntry?: HistoryEntry,
   ) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
+    const before = state.tasks.find(t => t.id === id);
     // Optimistic update
     const updated = state.tasks.map(t => t.id === id ? { ...t, ...patch } : t);
     dispatch({ type: "SET_TASKS", tasks: updated });
     try {
-      await updateTask(id, patch);
+      await updateTask(id, patch, before?.updated_at);
     } catch (e) {
-      dispatch({ type: "SET_TASKS", tasks: state.tasks });
-      console.error("updateTask failed", e);
+      if (e instanceof ConflictError) {
+        // Someone else changed this row first — discard our edit and reload the real data.
+        dispatch({ type: "SET_TASKS", tasks: await fetchTasks(boardId) });
+        setConflictMsg(`"${before?.name ?? "Task"}" was just updated by someone else — your change was discarded and the latest data was reloaded.`);
+      } else {
+        dispatch({ type: "SET_TASKS", tasks: state.tasks });
+        console.error("updateTask failed", e);
+      }
       return;
     }
     if (historyEntry) {
-      await addHistory(userId, historyEntry);
-      const history = await fetchHistory(userId);
+      await addHistory(userId, boardId, historyEntry);
+      const history = await fetchHistory(boardId);
       dispatch({ type: "SET_HISTORY", history });
     }
-  }, [userId, state.tasks]);
+  }, [userId, boardId, state.tasks]);
 
   const handleReorder = useCallback(async (
     orderedProjectIds: string[],
     orderedTaskIds: string[],
     historyEntries?: HistoryEntry[],
   ) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
     await Promise.all([
       reorderProjects(orderedProjectIds),
       reorderTasks(orderedTaskIds),
@@ -247,11 +285,11 @@ export function PlannerShell() {
       tasks: state.tasks.map(t => ({ ...t, priority_order: taskMap[t.id] ?? t.priority_order })),
     });
     if (historyEntries) {
-      for (const e of historyEntries) await addHistory(userId, e);
-      const history = await fetchHistory(userId);
+      for (const e of historyEntries) await addHistory(userId, boardId, e);
+      const history = await fetchHistory(boardId);
       dispatch({ type: "SET_HISTORY", history });
     }
-  }, [userId, state.projects, state.tasks]);
+  }, [userId, boardId, state.projects, state.tasks]);
 
   const handleUpsertEffort = useCallback(async (
     taskId: string,
@@ -260,14 +298,14 @@ export function PlannerShell() {
     mandays: number,
     oldMandays: number,
   ) => {
-    if (!userId) return;
-    await upsertEffort(taskId, roleId, userId, weekStart, mandays);
-    const efforts = await fetchWeeklyEfforts(userId);
+    if (!userId || !boardId) return;
+    await upsertEffort(taskId, roleId, boardId, weekStart, mandays);
+    const efforts = await fetchWeeklyEfforts(boardId);
     dispatch({ type: "SET_EFFORTS", efforts });
     if (mandays !== oldMandays) {
       const task = state.tasks.find(t => t.id === taskId);
       const role = state.roles.find(r => r.id === roleId);
-      await addHistory(userId, {
+      await addHistory(userId, boardId, {
         project_id: task?.project_id,
         task_id: taskId,
         change_type: "mandays_change",
@@ -275,10 +313,10 @@ export function PlannerShell() {
         old_value: String(oldMandays),
         new_value: String(mandays),
       });
-      const history = await fetchHistory(userId);
+      const history = await fetchHistory(boardId);
       dispatch({ type: "SET_HISTORY", history });
     }
-  }, [userId, state.tasks, state.roles]);
+  }, [userId, boardId, state.tasks, state.roles]);
 
   const handleUpsertCapacity = useCallback(async (
     roleId: string,
@@ -286,12 +324,12 @@ export function PlannerShell() {
     field: "capacity" | "taken_other" | "holiday" | "buffer_threshold",
     value: number,
   ) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
     const old = state.capacityMap[roleId]?.[weekStart]?.[field] ?? 0;
 
     // Optimistic update — build updated capacities array immediately
     const existingEntry: ResourceCapacity = state.capacityMap[roleId]?.[weekStart] ?? {
-      id: `tmp-${roleId}-${weekStart}`, user_id: userId,
+      id: `tmp-${roleId}-${weekStart}`, user_id: boardId,
       role_id: roleId, week_start: weekStart,
       capacity: 0, taken_other: 0, holiday: 0, buffer_threshold: 0,
       created_at: "", updated_at: "",
@@ -303,46 +341,50 @@ export function PlannerShell() {
     dispatch({ type: "SET_CAPACITIES", capacities: [...allCaps, updatedEntry] });
 
     // Persist to DB
-    await upsertCapacity(userId, roleId, weekStart, { [field]: value });
-    const capacities = await fetchResourceCapacity(userId);
+    await upsertCapacity(boardId, roleId, weekStart, { [field]: value });
+    const capacities = await fetchResourceCapacity(boardId);
     dispatch({ type: "SET_CAPACITIES", capacities });
     if (value !== old) {
       const role = state.roles.find(r => r.id === roleId);
-      await addHistory(userId, {
+      await addHistory(userId, boardId, {
         change_type: "capacity_change",
         field_name: `${field} · ${role?.name ?? roleId} · ${formatWeekRange(weekStart)}`,
         old_value: String(old),
         new_value: String(value),
       });
-      const history = await fetchHistory(userId);
+      const history = await fetchHistory(boardId);
       dispatch({ type: "SET_HISTORY", history });
     }
-  }, [userId, state.capacityMap, state.roles]);
+  }, [userId, boardId, state.capacityMap, state.roles]);
 
   const handleDeleteProject = useCallback(async (id: string) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
+    const proj = state.projects.find(p => p.id === id);
     dispatch({ type: "SET_PROJECTS", projects: state.projects.filter(p => p.id !== id) });
     dispatch({ type: "SET_TASKS",    tasks:    state.tasks.filter(t => t.project_id !== id) });
     await deleteProject(id);
-  }, [userId, state.projects, state.tasks]);
+    await addHistory(userId, boardId, { change_type: "project_deleted", notes: proj?.name });
+  }, [userId, boardId, state.projects, state.tasks]);
 
   const handleDeleteTask = useCallback(async (id: string) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
+    const task = state.tasks.find(t => t.id === id);
     dispatch({ type: "SET_TASKS", tasks: state.tasks.filter(t => t.id !== id) });
     await deleteTask(id);
-  }, [userId, state.tasks]);
+    await addHistory(userId, boardId, { project_id: task?.project_id, change_type: "task_deleted", notes: task?.name });
+  }, [userId, boardId, state.tasks]);
 
   const handleBulkDelete = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
     const ids = Array.from(state.selectedRowIds);
     if (!ids.length) return;
     if (!window.confirm(`Delete ${ids.length} item(s)? This cannot be undone.`)) return;
 
-    // Snapshot current IDs before any state mutation
-    const projIdsSet = new Set(state.projects.map(p => p.id));
-    const taskIdsSet = new Set(state.tasks.map(t => t.id));
-    const projIds = ids.filter(id => projIdsSet.has(id));
-    const taskIds = ids.filter(id => taskIdsSet.has(id));
+    // Snapshot current rows before any state mutation
+    const projsToDelete = state.projects.filter(p => ids.includes(p.id));
+    const tasksToDelete = state.tasks.filter(t => ids.includes(t.id));
+    const projIds = projsToDelete.map(p => p.id);
+    const taskIds = tasksToDelete.map(t => t.id);
 
     // Single optimistic update — remove all at once to avoid stale closure issues
     dispatch({
@@ -362,38 +404,44 @@ export function PlannerShell() {
       ...projIds.map(id => deleteProject(id)),
       ...taskIds.map(id => deleteTask(id)),
     ]);
-  }, [userId, state.selectedRowIds, state.projects, state.tasks]);
+    for (const p of projsToDelete) {
+      await addHistory(userId, boardId, { change_type: "project_deleted", notes: p.name });
+    }
+    for (const t of tasksToDelete) {
+      await addHistory(userId, boardId, { project_id: t.project_id, change_type: "task_deleted", notes: t.name });
+    }
+  }, [userId, boardId, state.selectedRowIds, state.projects, state.tasks]);
 
   const handleArchiveProject = useCallback(async (id: string) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
     const proj = state.projects.find(p => p.id === id);
     // Optimistic update
     const updated = state.projects.map(p => p.id === id ? { ...p, is_archived: true } : p);
     dispatch({ type: "SET_PROJECTS", projects: updated });
     try {
       await archiveProject(id, true);
-      await addHistory(userId, { project_id: id, change_type: "project_archived", notes: proj?.name });
-      const history = await fetchHistory(userId);
+      await addHistory(userId, boardId, { project_id: id, change_type: "project_archived", notes: proj?.name });
+      const history = await fetchHistory(boardId);
       dispatch({ type: "SET_HISTORY", history });
     } catch (e) {
       dispatch({ type: "SET_PROJECTS", projects: state.projects });
     }
-  }, [userId, state.projects]);
+  }, [userId, boardId, state.projects]);
 
   const handleRestoreProject = useCallback(async (id: string) => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
     const proj = state.projects.find(p => p.id === id);
     const updated = state.projects.map(p => p.id === id ? { ...p, is_archived: false } : p);
     dispatch({ type: "SET_PROJECTS", projects: updated });
     try {
       await archiveProject(id, false);
-      await addHistory(userId, { project_id: id, change_type: "project_restored", notes: proj?.name });
-      const history = await fetchHistory(userId);
+      await addHistory(userId, boardId, { project_id: id, change_type: "project_restored", notes: proj?.name });
+      const history = await fetchHistory(boardId);
       dispatch({ type: "SET_HISTORY", history });
     } catch (e) {
       dispatch({ type: "SET_PROJECTS", projects: state.projects });
     }
-  }, [userId, state.projects]);
+  }, [userId, boardId, state.projects]);
 
   const handleRowHistoryClick = useCallback((projectId: string) => {
     dispatch({ type: "SET_HISTORY_FILTER", projectId });
@@ -401,7 +449,7 @@ export function PlannerShell() {
   }, [state.isHistoryOpen]);
 
   const handleRunCascade = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !boardId) return;
 
     const activeTasks = state.tasks.filter(t =>
       activeProjects.some(p => p.id === t.project_id) && !t.is_archived
@@ -437,18 +485,18 @@ export function PlannerShell() {
 
     // Persist each cell using the proven individual upsertEffort (handles zero→delete)
     for (const cell of cellMap.values()) {
-      await upsertEffort(cell.taskId, cell.roleId, userId, cell.weekStart, cell.mandays);
+      await upsertEffort(cell.taskId, cell.roleId, boardId, cell.weekStart, cell.mandays);
     }
 
     // Single reload — no intermediate clear to avoid flicker
-    const efforts = await fetchWeeklyEfforts(userId);
+    const efforts = await fetchWeeklyEfforts(boardId);
     dispatch({ type: "SET_EFFORTS", efforts });
 
     // History logging
     const roleMap = Object.fromEntries(state.roles.map(r => [r.id, r.name]));
     const taskMap = Object.fromEntries(state.tasks.map(t => [t.id, t.name]));
     for (const c of changes) {
-      await addHistory(userId, {
+      await addHistory(userId, boardId, {
         task_id: c.taskId,
         change_type: "cascade_push",
         field_name: roleMap[c.roleId] ?? c.roleId,
@@ -457,9 +505,9 @@ export function PlannerShell() {
         notes: taskMap[c.taskId],
       });
     }
-    const history = await fetchHistory(userId);
+    const history = await fetchHistory(boardId);
     dispatch({ type: "SET_HISTORY", history });
-  }, [userId, state.tasks, state.roles, state.effortMap, state.capacityMap, activeProjects, weeks]);
+  }, [userId, boardId, state.tasks, state.roles, state.effortMap, state.capacityMap, activeProjects, weeks]);
 
   const handleBulkArchive = useCallback(async () => {
     if (!userId) return;
@@ -495,13 +543,48 @@ export function PlannerShell() {
 
   return (
     <div className="planner-shell">
+      {/* Conflict toast — surfaces concurrent-edit collisions caught by optimistic locking */}
+      {conflictMsg && (
+        <div
+          role="alert"
+          style={{
+            position: "fixed", top: 16, right: 16, zIndex: 200,
+            maxWidth: 360, padding: "10px 14px",
+            background: "#fff6f6", border: "1px solid rgba(226,67,75,.3)",
+            borderRadius: "var(--radius-md)", boxShadow: "0 4px 16px rgba(0,0,0,.12)",
+            fontFamily: "var(--font-mono)", fontSize: 11.5, color: "var(--danger-text)",
+            display: "flex", alignItems: "flex-start", gap: 8,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger-text)" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span style={{ flex: 1 }}>{conflictMsg}</span>
+          <button type="button" onClick={() => setConflictMsg(null)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger-text)", padding: 0, flexShrink: 0 }}>
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="planner-header">
         <div className="planner-icon">
           <LayoutGrid size={18} />
         </div>
         <div>
-          <div className="planner-title">Project Timeline & Capacity Planner</div>
+          <div className="planner-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            Project Timeline & Capacity Planner
+            {!isOwnBoard && (
+              <span style={{
+                fontSize: 10, padding: "2px 7px", borderRadius: "var(--radius-full)",
+                border: "1px solid var(--accent-border)", background: "var(--accent-muted)", color: "var(--accent-text)",
+                fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: ".03em",
+              }}>
+                Shared board
+              </span>
+            )}
+          </div>
           <div className="planner-subtitle">
             {activeProjects.length} active project{activeProjects.length !== 1 ? "s" : ""} ·{" "}
             {state.tasks.filter(t => activeProjects.some(p => p.id === t.project_id)).length} tasks
@@ -511,13 +594,18 @@ export function PlannerShell() {
           <SegmentedControl
             options={[
               { id: "grid",     label: "Grid",     icon: <LayoutGrid size={11} /> },
-              { id: "timeline", label: "Timeline", icon: <GitBranch  size={11} /> },
+              { id: "timeline", label: "Timeline", icon: <GitBranch  size={11} />, disabled: true, disabledReason: "Timeline view is being reworked — coming back soon" },
               { id: "archive",  label: "Archive",  icon: <Archive    size={11} />, badge: archivedProjects.length || undefined },
             ]}
             value={state.view}
             onChange={(v) => dispatch({ type: "SET_VIEW", view: v as PlannerView })}
           />
           <div style={{ width: 1, height: 20, background: "var(--border-strong)", flexShrink: 0 }} />
+          {isOwnBoard && (
+            <Button variant="ghost" size="sm" onClick={() => setShareOpen(true)}>
+              <Share2 size={13} /> Share
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => dispatch({ type: "TOGGLE_HISTORY" })}>
             <History size={13} /> History
           </Button>
@@ -597,6 +685,9 @@ export function PlannerShell() {
           />
         )}
       </div>
+
+      {/* Share dialog */}
+      {userId && <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} ownerId={userId} />}
 
       {/* History panel */}
       <HistoryPanel
