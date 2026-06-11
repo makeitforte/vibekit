@@ -10,13 +10,15 @@ import {
 } from "./types";
 import { HistoryEntry } from "./queries";
 import {
-  formatWeekEnd, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta,
+  formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta,
 } from "./utils";
+import { TaskHistoryModal } from "./task-history-modal";
 import { cn } from "@/lib/cn";
 
 // ── Prop types ────────────────────────────────────────────────────────────────
 
 interface Props {
+  boardOwnerId: string;
   roles: Role[];
   projects: Project[];
   tasks: Task[];
@@ -108,12 +110,13 @@ interface ContextMenuProps extends CtxState {
   onClose: () => void;
   onEditName: () => void;
   onViewHistory: (projectId: string) => void;
+  onViewTaskHistory: (taskId: string) => void;
   onArchive: (id: string) => void;
   onDelete: (id: string, type: "project" | "task") => void;
   onChangeProject: (taskId: string, newProjectId: string) => void;
 }
 
-function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName, onViewHistory, onArchive, onDelete, onChangeProject }: ContextMenuProps) {
+function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName, onViewHistory, onViewTaskHistory, onArchive, onDelete, onChangeProject }: ContextMenuProps) {
   const [showProjPicker, setShowProjPicker] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [submenuFlipLeft, setSubmenuFlipLeft]   = useState(false);
@@ -186,7 +189,10 @@ function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName,
         </div>
       )}
 
-      <button className="ctx-item" onClick={() => { onViewHistory(projectId); onClose(); }}>
+      <button className="ctx-item" onClick={() => {
+        if (type === "task") { onViewTaskHistory(id); } else { onViewHistory(projectId); }
+        onClose();
+      }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         View history
       </button>
@@ -399,13 +405,14 @@ function CapInput({ value, className, isWeekStart, onChange }: CapInputProps) {
 // ── Main Grid ────────────────────────────────────────────────────────────────
 
 export function PlannerGrid({
-  roles, projects, tasks, effortMap, capacityMap, dateRange, weeks, onRunCascade,
+  boardOwnerId, roles, projects, tasks, effortMap, capacityMap, dateRange, weeks, onRunCascade,
   onDeleteProject, onDeleteTask, onRowHistoryClick, onChangeTaskProject,
   selectedRowIds, onDateRangeChange, onToggleSelect, onReorder,
   onUpdateProject, onAddTask, onUpdateTask, onUpsertEffort, onUpsertCapacity,
   onArchiveProject,
 }: Props) {
   const [statusTarget,   setStatusTarget]   = useState<{ rect: DOMRect; id: string; type: "project" | "task" } | null>(null);
+  const [taskHistoryTask, setTaskHistoryTask] = useState<Task | null>(null);
   const [editingId,         setEditingId]         = useState<string | null>(null);
   const [editingName,       setEditingName]       = useState("");
   const [ctxMenu,           setCtxMenu]           = useState<CtxState | null>(null);
@@ -422,23 +429,28 @@ export function PlannerGrid({
   // Sticky summary rows must stack directly below the sticky header with no
   // gap — measure actual rendered heights instead of guessing pixel values,
   // since fonts/zoom can shift them and leave a visible seam.
-  const theadRef  = useRef<HTMLTableSectionElement>(null);
-  const sumRowRef = useRef<HTMLTableRowElement>(null);
+  const theadRef     = useRef<HTMLTableSectionElement>(null);
+  const theadWeekRef = useRef<HTMLTableRowElement>(null);
+  const sumRowRef    = useRef<HTMLTableRowElement>(null);
   const [sumRowMetrics, setSumRowMetrics] = useState({ topBase: 61, rowHeight: 33 });
+  const [weekRowHeight, setWeekRowHeight] = useState(33);
 
   useEffect(() => {
     const measure = () => {
       const topBase   = theadRef.current?.getBoundingClientRect().height;
       const rowHeight = sumRowRef.current?.getBoundingClientRect().height;
+      const weekH     = theadWeekRef.current?.getBoundingClientRect().height;
       if (!topBase || !rowHeight) return;
       setSumRowMetrics(prev =>
         (prev.topBase === topBase && prev.rowHeight === rowHeight) ? prev : { topBase, rowHeight }
       );
+      if (weekH) setWeekRowHeight(prev => prev === weekH ? prev : weekH);
     };
     measure();
     const ro = new ResizeObserver(measure);
-    if (theadRef.current)  ro.observe(theadRef.current);
-    if (sumRowRef.current) ro.observe(sumRowRef.current);
+    if (theadRef.current)     ro.observe(theadRef.current);
+    if (theadWeekRef.current) ro.observe(theadWeekRef.current);
+    if (sumRowRef.current)    ro.observe(sumRowRef.current);
     return () => ro.disconnect();
   }, [roles, weeks, featColWidth]);
 
@@ -610,20 +622,25 @@ export function PlannerGrid({
         <table className="planner-table">
           <thead ref={theadRef}>
             {/* Week headers */}
-            <tr className="thead-week">
-              <th className="col-cb th-sticky" />
-              <th className="col-drag th-sticky" />
+            <tr ref={theadWeekRef} className="thead-week">
+              <th className="col-cb th-sticky" style={{ left: 0 }} />
+              <th className="col-drag th-sticky" style={{ left: 36 }} />
               {/* Resizable Feature/Task column — inline style overrides CSS default width */}
               <th className="col-feat th-sticky th-col-header"
                 style={{ width: featColWidth, minWidth: featColWidth, position: "sticky", left: 64 }}>
                 Feature / Task
-                {/* Resize handle */}
+              </th>
+              <th className="col-pri th-sticky th-col-header center" style={{ left: priLeft }}>Pri</th>
+              <th className="col-eta th-sticky th-col-header" style={{ left: etaLeft }}>ETA</th>
+              {/* Resize handle lives on col-tot — the freeze panel boundary — so the drag target
+                  and visual separator are at the same position (right edge of the frozen area). */}
+              <th className="col-tot th-sticky th-col-header center" style={{ left: totLeft }}>
+                Total<br /><span style={{ fontSize: 9 }}>effort</span>
                 <div
                   style={{
-                    position: "absolute", top: 0, right: 0, bottom: 0, width: 6,
-                    cursor: "col-resize", zIndex: 2,
+                    position: "absolute", top: 0, right: 0, bottom: 0, width: 8,
+                    cursor: "col-resize", zIndex: 13,
                     background: "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
                   }}
                   onMouseDown={(e) => {
                     e.preventDefault();
@@ -641,23 +658,20 @@ export function PlannerGrid({
                     window.addEventListener("mousemove", onMove);
                     window.addEventListener("mouseup", onUp);
                   }}
-                >
-                  <div style={{ width: 2, height: 16, background: "var(--border-strong)", borderRadius: 1, opacity: 0.6 }} />
-                </div>
+                />
               </th>
-              <th className="col-pri th-sticky th-col-header center" style={{ left: priLeft }}>Pri</th>
-              <th className="col-eta th-sticky th-col-header" style={{ left: etaLeft }}>ETA</th>
-              <th className="col-tot th-sticky th-col-header center" style={{ left: totLeft }}>Total<br /><span style={{ fontSize: 9 }}>effort</span></th>
               {weeks.map((w, i) => (
                 <th key={w} colSpan={roles.length} className={cn("th-week-group", i === 0 && "first")}>
-                  <span className="th-week-date">{formatWeekEnd(w)}</span>
+                  {/* sticky left keeps the label pinned to the freeze boundary when the cell is
+                      partially scrolled behind the frozen panel — prevents blank inter-week gaps */}
+                  <span className="th-week-date" style={{ position: "sticky", left: totLeft + 64 + 4 }}>{formatWeekRange(w)}</span>
                 </th>
               ))}
             </tr>
             {/* Role sub-headers */}
-            <tr className="thead-role">
-              <th className="col-cb th-sticky" />
-              <th className="col-drag th-sticky" />
+            <tr className="thead-role" style={{ top: weekRowHeight }}>
+              <th className="col-cb th-sticky" style={{ left: 0 }} />
+              <th className="col-drag th-sticky" style={{ left: 36 }} />
               <th className="col-feat th-sticky" style={{ width: featColWidth, minWidth: featColWidth, left: 64 }} />
               <th className="col-pri th-sticky" style={{ left: priLeft }} />
               <th className="col-eta th-sticky" style={{ left: etaLeft }} />
@@ -667,7 +681,7 @@ export function PlannerGrid({
                   <th
                     key={`${w}-${role.id}`}
                     className={cn("th-role", ri === 0 && "first")}
-                    style={{ color: role.color, background: solidTint(role.color) }}
+                    style={{ color: role.color, background: solidTint(role.color, 0.32) }}
                   >
                     {role.name}
                   </th>
@@ -715,10 +729,10 @@ export function PlannerGrid({
                   onDrop={(e) => handleDrop(e, id)}
                   onDragEnd={() => { setDropTargetId(null); setDraggingId(null); dragSrc.current = null; stopAutoScroll(); }}
                 >
-                  <td className="col-cb cb-cell">
+                  <td className="col-cb cb-cell" style={{ left: 0 }}>
                     <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(id)} />
                   </td>
-                  <td className="col-drag drag-handle">⠿</td>
+                  <td className="col-drag drag-handle" style={{ left: 36 }}>⠿</td>
                   <td className="col-feat" style={{ width: featColWidth, minWidth: featColWidth, left: 64 }}>
                     <div className="feat-cell feat-cell-stacked">
                       {/* Line 1 — task name gets the full row width to itself */}
@@ -898,6 +912,10 @@ export function PlannerGrid({
             setEditingName(item?.name ?? "");
           }}
           onViewHistory={onRowHistoryClick}
+          onViewTaskHistory={(taskId) => {
+            const t = tasks.find(t => t.id === taskId);
+            if (t) setTaskHistoryTask(t);
+          }}
           onArchive={onArchiveProject}
           onDelete={(id, type) => {
             if (!window.confirm("Delete this item? This cannot be undone.")) return;
@@ -910,6 +928,16 @@ export function PlannerGrid({
         />
       )}
 
+
+      {/* Task history modal */}
+      {taskHistoryTask && (
+        <TaskHistoryModal
+          task={taskHistoryTask}
+          boardOwnerId={boardOwnerId}
+          roles={roles}
+          onClose={() => setTaskHistoryTask(null)}
+        />
+      )}
 
       {/* Status portal */}
       {statusTarget && (
@@ -980,8 +1008,8 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
 
   const emptySticky = (
     <>
-      <td className="col-cb" />
-      <td className="col-drag" />
+      <td className="col-cb" style={{ left: 0 }} />
+      <td className="col-drag" style={{ left: 36 }} />
     </>
   );
 

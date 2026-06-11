@@ -361,6 +361,22 @@ export async function addHistory(
   if (error) console.error("history insert error", error);
 }
 
+/** Fetch all history entries for a specific task (no limit). */
+export async function fetchTaskHistory(ownerId: string, taskId: string): Promise<ChangeHistory[]> {
+  const { data, error } = await sb()
+    .from("planner_change_history")
+    .select("*, planner_projects(name), planner_tasks(name)")
+    .eq("owner_id", ownerId)
+    .eq("task_id", taskId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    ...row,
+    project_name: (row.planner_projects as Record<string, unknown> | null)?.name as string | undefined,
+    task_name:    (row.planner_tasks    as Record<string, unknown> | null)?.name as string | undefined,
+  })) as ChangeHistory[];
+}
+
 // ── Board sharing ─────────────────────────────────────────────────────────────
 
 /** Active (non-revoked) share links the current user has generated for their board. */

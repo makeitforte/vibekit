@@ -155,11 +155,14 @@
 .col-tot::after {
   content: '';
   position: absolute;
-  top: 0; right: -1px; bottom: 0;
-  width: 1px;
+  top: 0; right: -2px; bottom: 0;
+  width: 2px;
   background: var(--border-strong);
   z-index: 1;
 }
+/* Freeze panel resize — handle sits on col-tot's right edge; highlight the separator on hover */
+.col-tot::after { transition: background 0.15s; }
+.thead-week .col-tot:hover::after { background: var(--accent-text, #0d6efd); }
 
 /* ── Column headers ── */
 .thead-week { position: sticky; top: 0;    z-index: 20; }
@@ -180,6 +183,7 @@
 }
 .th-week-group.first { border-left: 2px solid var(--border-strong); }
 .th-week-date {
+  display: inline-block; /* required for position:sticky to take effect */
   font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 600;
@@ -595,12 +599,13 @@ td { padding: 0; height: 34px; vertical-align: middle; }
 /* Week start border */
 .wk-start { border-left: 2px solid var(--border-strong) !important; }
 
-/* Role-coloured effort cells */
-.ec-be  { background: rgba(22, 162, 104, 0.10); } .ec-be  input { color: #0e7a4e; }
-.ec-fw  { background: rgba(183, 134, 11, 0.10); } .ec-fw  input { color: #876200; }
-.ec-fa  { background: rgba(59, 130, 246, 0.10);  } .ec-fa  input { color: #1d4ed8; }
-.ec-fi  { background: rgba(139, 92, 246, 0.10);  } .ec-fi  input { color: #6d28d9; }
-.ec-qa  { background: rgba(6, 182, 212, 0.10);   } .ec-qa  input { color: #0e7490; }
+/* Role-coloured effort cells — solid (opaque) equivalents of the 10%-alpha tints over white,
+   so they never bleed through sticky column backgrounds during scroll. */
+.ec-be  { background: #e8f6f0; } .ec-be  input { color: #0e7a4e; }
+.ec-fw  { background: #f8f3e7; } .ec-fw  input { color: #876200; }
+.ec-fa  { background: #ebf3fe; } .ec-fa  input { color: #1d4ed8; }
+.ec-fi  { background: #f3effe; } .ec-fi  input { color: #6d28d9; }
+.ec-qa  { background: #e6f8fb; } .ec-qa  input { color: #0e7490; }
 /* Hover override */
 .row-project:hover .ec-be, .row-task:hover .ec-be,
 .row-project:hover .ec-fw, .row-task:hover .ec-fw,

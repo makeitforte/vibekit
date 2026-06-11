@@ -637,6 +637,7 @@ export function PlannerShell({ boardOwnerId }: PlannerShellProps = {}) {
           <div className="planner-loading">Loading…</div>
         ) : state.view === "grid" ? (
           <PlannerGrid
+            boardOwnerId={boardId ?? ""}
             roles={state.roles}
             projects={activeProjects}
             tasks={state.tasks.filter(t => activeProjects.some(p => p.id === t.project_id))}
