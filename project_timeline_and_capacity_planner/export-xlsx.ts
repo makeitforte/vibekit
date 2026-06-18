@@ -1,7 +1,7 @@
 "use client";
 
 import { Role, Project, Task, EffortMap, CapacityMap } from "./types";
-import { formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort } from "./utils";
+import { formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta } from "./utils";
 
 // ── Colour helpers ────────────────────────────────────────────────────────────
 
@@ -20,6 +20,30 @@ const ROLE_BG_HEX: Record<string, string> = {
 
 function roleBg(color: string): string {
   return "FF" + (ROLE_BG_HEX[color.toLowerCase()] ?? "F3F4F6");
+}
+
+// ── Status / priority helpers (mirror the grid) ─────────────────────────────────
+
+const STATUS_LABEL: Record<string, string> = {
+  todo: "To Do", prd_in_progress: "PRD In Progress", prd_ready: "PRD Ready",
+  in_progress: "In Progress", done: "Done", released: "Released", cancelled: "Cancelled",
+};
+const STATUS_COLOR: Record<string, string> = {
+  todo: "FF6B7280", prd_in_progress: "FFB45309", prd_ready: "FF047857",
+  in_progress: "FF1D4ED8", done: "FF0E7A4E", released: "FF6D28D9", cancelled: "FF9CA3AF",
+};
+
+/** Same precedence as the grid: project's explicit label, else its priority order → P1/P2/P3. */
+function resolveProjectLabel(proj: Project, order: number): "P1" | "P2" | "P3" {
+  if (proj.priority_label) return proj.priority_label;
+  if (order === 0) return "P1";
+  if (order === 1) return "P2";
+  return "P3";
+}
+
+function formatEta(eta: string | null): string {
+  if (!eta) return "—";
+  return new Date(eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ── Main export function ──────────────────────────────────────────────────────
@@ -41,31 +65,44 @@ export async function exportToXlsx(params: {
   wb.creator = "VibeKit";
   wb.created = new Date();
 
+  // Frozen panel = 6 sticky cols (feat, project, pri, eta, status, total) + 8 top rows
+  // (2 header rows + 6 summary rows). Mirrors the in-app grid's flat task layout.
+  const STICKY_COLS  = 6;
+  const HEADER_ROWS  = 2;
+  const SUMMARY_ROWS = 6;
+  const FROZEN_ROWS  = HEADER_ROWS + SUMMARY_ROWS; // 8
+
   const ws = wb.addWorksheet("Timeline", {
-    views: [{ state: "frozen", xSplit: 6, ySplit: 7 }], // freeze sticky cols + summary rows
+    views: [{ state: "frozen", xSplit: STICKY_COLS, ySplit: FROZEN_ROWS }],
   });
 
-  const STICKY_COLS = 6; // cb, drag, feat, pri, eta, total
-  const totalCols   = STICKY_COLS + weeks.length * roles.length;
-
   // ── Column widths ───────────────────────────────────────────────────────────
-  ws.getColumn(1).width = 4;   // checkbox
-  ws.getColumn(2).width = 4;   // drag
-  ws.getColumn(3).width = 30;  // feature
-  ws.getColumn(4).width = 7;   // pri
-  ws.getColumn(5).width = 10;  // eta
-  ws.getColumn(6).width = 8;   // total
+  ws.getColumn(1).width = 34;  // Feature / Task
+  ws.getColumn(2).width = 18;  // Project
+  ws.getColumn(3).width = 6;   // Pri
+  ws.getColumn(4).width = 11;  // ETA
+  ws.getColumn(5).width = 15;  // Status
+  ws.getColumn(6).width = 8;   // Total Effort
   for (let i = 0; i < weeks.length * roles.length; i++) {
     ws.getColumn(STICKY_COLS + 1 + i).width = 7;
   }
 
-  // ── Row 1: Week headers ─────────────────────────────────────────────────────
-  const weekHeaderRow = ws.getRow(1);
-  weekHeaderRow.getCell(3).value = "Feature / Task";
-  weekHeaderRow.getCell(4).value = "Pri";
-  weekHeaderRow.getCell(5).value = "ETA";
-  weekHeaderRow.getCell(6).value = "Total\nEffort";
+  const STICKY_HEADERS = ["Feature / Task", "Project", "Pri", "ETA", "Status", "Total\nEffort"];
 
+  // ── Rows 1–2: sticky column headers (merged vertically) + week / role headers ──
+  const weekHeaderRow = ws.getRow(1);
+  const roleHeaderRow = ws.getRow(2);
+
+  STICKY_HEADERS.forEach((label, i) => {
+    const col  = i + 1;
+    const cell = weekHeaderRow.getCell(col);
+    cell.value = label;
+    cell.font  = { bold: true, size: 10 };
+    cell.alignment = { horizontal: i >= 2 ? "center" : "left", vertical: "middle", wrapText: true };
+    ws.mergeCells(1, col, 2, col); // span both header rows
+  });
+
+  // Week groups (row 1) + role sub-headers (row 2)
   weeks.forEach((w, wi) => {
     const startCol = STICKY_COLS + 1 + wi * roles.length;
     const endCol   = startCol + roles.length - 1;
@@ -73,40 +110,32 @@ export async function exportToXlsx(params: {
     cell.value = formatWeekRange(w);
     cell.alignment = { horizontal: "center", vertical: "middle" };
     cell.font = { bold: true, size: 10 };
-    if (roles.length > 1) {
-      ws.mergeCells(1, startCol, 1, endCol);
-    }
+    if (roles.length > 1) ws.mergeCells(1, startCol, 1, endCol);
     cell.border = { left: { style: "medium", color: { argb: "FFD1D5DB" } } };
-  });
 
-  weekHeaderRow.height = 20;
-  weekHeaderRow.font = { bold: true, size: 10 };
-  weekHeaderRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF9FAFB" } };
-
-  // ── Row 2: Role sub-headers ─────────────────────────────────────────────────
-  const roleHeaderRow = ws.getRow(2);
-  weeks.forEach((w, wi) => {
     roles.forEach((role, ri) => {
-      const col  = STICKY_COLS + 1 + wi * roles.length + ri;
-      const cell = roleHeaderRow.getCell(col);
-      cell.value = role.name;
-      cell.alignment = { horizontal: "center" };
-      cell.font = { bold: true, size: 9, color: { argb: toArgb(role.color) } };
-      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: roleBg(role.color) } };
-      if (ri === 0) cell.border = { left: { style: "medium", color: { argb: "FFD1D5DB" } } };
+      const rc   = roleHeaderRow.getCell(startCol + ri);
+      rc.value = role.name;
+      rc.alignment = { horizontal: "center" };
+      rc.font = { bold: true, size: 9, color: { argb: toArgb(role.color) } };
+      rc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: roleBg(role.color) } };
+      if (ri === 0) rc.border = { left: { style: "medium", color: { argb: "FFD1D5DB" } } };
     });
   });
+
+  weekHeaderRow.height = 22;
+  weekHeaderRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF9FAFB" } };
   roleHeaderRow.height = 16;
 
-  // ── Summary rows ────────────────────────────────────────────────────────────
+  // ── Summary rows (rows 3–8) ───────────────────────────────────────────────────
   const allTaskIds = tasks.map(t => t.id);
   const summaryLabels = ["Capacity (mandays)", "Total Required", "Taken (other squad)", "Holiday / Day-off", "Buffer / Shortage", "Min Buffer Threshold"];
   const summaryFgColors = ["FFF9FAFB", "FFF0FDF4", "FFF9FAFB", "FFF9FAFB", "FFF9FAFB", "FFFFF5F5"];
 
   summaryLabels.forEach((label, si) => {
-    const row = ws.getRow(3 + si);
-    row.getCell(3).value = label;
-    row.getCell(3).font  = { bold: false, size: 9, color: { argb: "FF6B7280" } };
+    const row = ws.getRow(HEADER_ROWS + 1 + si);
+    row.getCell(1).value = label;
+    row.getCell(1).font  = { bold: false, size: 9, color: { argb: "FF6B7280" } };
     row.height = 16;
     row.fill   = { type: "pattern", pattern: "solid", fgColor: { argb: summaryFgColors[si] } };
 
@@ -140,59 +169,67 @@ export async function exportToXlsx(params: {
   });
 
   // Thick border under last summary row
-  const lastSumRow = ws.getRow(3 + summaryLabels.length - 1);
+  const lastSumRow = ws.getRow(FROZEN_ROWS);
   lastSumRow.eachCell(cell => {
     cell.border = { ...cell.border, bottom: { style: "medium", color: { argb: "FF9CA3AF" } } };
   });
 
-  // ── Data rows ───────────────────────────────────────────────────────────────
+  // ── Data rows — flat task list (mirrors the grid; project shown as a column) ───
   const sortedProjects = [...projects].sort((a, b) => a.priority_order - b.priority_order);
   const sortedTasks    = [...tasks].sort((a, b) => a.priority_order - b.priority_order);
+  const projOrder = new Map(sortedProjects.map((p, i) => [p.id, i]));
 
-  let dataRowIdx = 3 + summaryLabels.length + 1; // 1-based
+  let dataRowIdx = FROZEN_ROWS + 1; // 1-based, first row after the frozen summary block
 
-  for (const [pi, proj] of sortedProjects.entries()) {
-    // Project row
-    const projRow  = ws.getRow(dataRowIdx++);
-    projRow.height = 18;
-    projRow.fill   = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F4F6" } };
-    projRow.getCell(3).value = proj.name;
-    projRow.getCell(3).font  = { bold: true, size: 10 };
-    projRow.getCell(4).value = `P${pi + 1}`;
-    projRow.getCell(4).font  = { bold: true, size: 9 };
-    projRow.getCell(5).value = proj.eta ? new Date(proj.eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
-    const projTotal = sortedTasks.filter(t => t.project_id === proj.id).reduce((s, t) => s + getTaskTotalEffort(t.id, effortMap), 0);
-    projRow.getCell(6).value = projTotal || "—";
-    projRow.getCell(6).font  = { bold: true, size: 10 };
+  for (const task of sortedTasks) {
+    const proj = sortedProjects.find(p => p.id === task.project_id);
+    const taskRow  = ws.getRow(dataRowIdx++);
+    taskRow.height = 16;
 
-    // Task rows
-    for (const task of sortedTasks.filter(t => t.project_id === proj.id)) {
-      const taskRow  = ws.getRow(dataRowIdx++);
-      taskRow.height = 16;
-      taskRow.getCell(3).value = "  " + task.name;
-      taskRow.getCell(3).font  = { size: 10, color: { argb: "FF374151" } };
-      taskRow.getCell(4).value = `P${pi + 1}`;
-      taskRow.getCell(4).font  = { size: 9, color: { argb: "FF9CA3AF" } };
-      taskRow.getCell(5).value = task.eta ? new Date(task.eta + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—";
-      const tot = getTaskTotalEffort(task.id, effortMap);
-      taskRow.getCell(6).value = tot || "—";
-      taskRow.getCell(6).font  = { bold: true, size: 10 };
+    // Feature / Task
+    taskRow.getCell(1).value = task.name;
+    taskRow.getCell(1).font  = { size: 10, color: { argb: "FF374151" } };
 
-      weeks.forEach((w, wi) => {
-        roles.forEach((role, ri) => {
-          const col = STICKY_COLS + 1 + wi * roles.length + ri;
-          const md  = effortMap[task.id]?.[role.id]?.[w] ?? 0;
-          const cell = taskRow.getCell(col);
-          if (md > 0) {
-            cell.value = md;
-            cell.alignment = { horizontal: "center" };
-            cell.font  = { size: 10, bold: true, color: { argb: toArgb(role.color) } };
-            cell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: roleBg(role.color) } };
-          }
-          if (ri === 0) cell.border = { left: { style: "medium", color: { argb: "FFD1D5DB" } } };
-        });
+    // Project
+    taskRow.getCell(2).value = proj?.name ?? "—";
+    taskRow.getCell(2).font  = { size: 9, color: { argb: "FF6B7280" } };
+
+    // Priority — task's own label takes precedence, else the project's resolved label
+    const priLabel = task.priority_label ?? (proj ? resolveProjectLabel(proj, projOrder.get(proj.id) ?? 0) : "P3");
+    taskRow.getCell(3).value = priLabel;
+    taskRow.getCell(3).font  = { size: 9, bold: true, color: { argb: "FF6B7280" } };
+    taskRow.getCell(3).alignment = { horizontal: "center" };
+
+    // ETA — manual override, else auto-derived (last effort week's Friday)
+    taskRow.getCell(4).value = formatEta(task.eta ?? deriveTaskEta(task.id, effortMap));
+    taskRow.getCell(4).font  = { size: 9 };
+    taskRow.getCell(4).alignment = { horizontal: "center" };
+
+    // Status
+    taskRow.getCell(5).value = STATUS_LABEL[task.status] ?? task.status;
+    taskRow.getCell(5).font  = { size: 9, color: { argb: STATUS_COLOR[task.status] ?? "FF6B7280" } };
+
+    // Total effort
+    const tot = getTaskTotalEffort(task.id, effortMap);
+    taskRow.getCell(6).value = tot || "—";
+    taskRow.getCell(6).font  = { bold: true, size: 10 };
+    taskRow.getCell(6).alignment = { horizontal: "center" };
+
+    // Week × role effort cells
+    weeks.forEach((w, wi) => {
+      roles.forEach((role, ri) => {
+        const col = STICKY_COLS + 1 + wi * roles.length + ri;
+        const md  = effortMap[task.id]?.[role.id]?.[w] ?? 0;
+        const cell = taskRow.getCell(col);
+        if (md > 0) {
+          cell.value = md;
+          cell.alignment = { horizontal: "center" };
+          cell.font  = { size: 10, bold: true, color: { argb: toArgb(role.color) } };
+          cell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: roleBg(role.color) } };
+        }
+        if (ri === 0) cell.border = { left: { style: "medium", color: { argb: "FFD1D5DB" } } };
       });
-    }
+    });
   }
 
   // ── Download ────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Plus, GripVertical } from "lucide-react";
+import { Plus, GripVertical, FileText, Link2 } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import {
@@ -12,7 +12,7 @@ import { HistoryEntry } from "./queries";
 import {
   formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta,
 } from "./utils";
-import { TaskHistoryModal } from "./task-history-modal";
+import { TaskDetailsModal } from "./task-details-modal";
 import { cn } from "@/lib/cn";
 
 // ── Prop types ────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ interface Props {
   onReorder: (projectIds: string[], taskIds: string[], historyEntries?: HistoryEntry[]) => void;
   onUpdateProject: (id: string, patch: Partial<Pick<Project, "name" | "status" | "eta" | "notes" | "priority_order" | "priority_label">>, historyEntry?: HistoryEntry) => void;
   onAddTask: (projectId: string) => void;
-  onUpdateTask: (id: string, patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "priority_order" | "project_id" | "priority_label">>, historyEntry?: HistoryEntry) => void;
+  onUpdateTask: (id: string, patch: Partial<Pick<Task, "name" | "status" | "eta" | "notes" | "links" | "priority_order" | "project_id" | "priority_label">>, historyEntry?: HistoryEntry) => void;
   onUpsertEffort: (taskId: string, roleId: string, weekStart: string, mandays: number, oldMandays: number) => void;
   onUpsertCapacity: (roleId: string, weekStart: string, field: "capacity" | "taken_other" | "holiday" | "buffer_threshold", value: number) => void;
   onArchiveProject: (id: string) => void;
@@ -111,12 +111,13 @@ interface ContextMenuProps extends CtxState {
   onEditName: () => void;
   onViewHistory: (projectId: string) => void;
   onViewTaskHistory: (taskId: string) => void;
+  onViewTaskDetails: (taskId: string) => void;
   onArchive: (id: string) => void;
   onDelete: (id: string, type: "project" | "task") => void;
   onChangeProject: (taskId: string, newProjectId: string) => void;
 }
 
-function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName, onViewHistory, onViewTaskHistory, onArchive, onDelete, onChangeProject }: ContextMenuProps) {
+function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName, onViewHistory, onViewTaskHistory, onViewTaskDetails, onArchive, onDelete, onChangeProject }: ContextMenuProps) {
   const [showProjPicker, setShowProjPicker] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [submenuFlipLeft, setSubmenuFlipLeft]   = useState(false);
@@ -187,6 +188,14 @@ function ContextMenu({ x, y, id, type, projectId, projects, onClose, onEditName,
             </div>
           )}
         </div>
+      )}
+
+      {/* Task details — notes + attached links (tasks only) */}
+      {type === "task" && (
+        <button className="ctx-item" onClick={() => { onViewTaskDetails(id); onClose(); }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          Task details
+        </button>
       )}
 
       <button className="ctx-item" onClick={() => {
@@ -412,7 +421,7 @@ export function PlannerGrid({
   onArchiveProject,
 }: Props) {
   const [statusTarget,   setStatusTarget]   = useState<{ rect: DOMRect; id: string; type: "project" | "task" } | null>(null);
-  const [taskHistoryTask, setTaskHistoryTask] = useState<Task | null>(null);
+  const [detailsTask, setDetailsTask] = useState<{ task: Task; tab: "details" | "changes" | "mandays" } | null>(null);
   const [editingId,         setEditingId]         = useState<string | null>(null);
   const [editingName,       setEditingName]       = useState("");
   const [ctxMenu,           setCtxMenu]           = useState<CtxState | null>(null);
@@ -662,9 +671,9 @@ export function PlannerGrid({
               </th>
               {weeks.map((w, i) => (
                 <th key={w} colSpan={roles.length} className={cn("th-week-group", i === 0 && "first")}>
-                  {/* sticky left keeps the label pinned to the freeze boundary when the cell is
-                      partially scrolled behind the frozen panel — prevents blank inter-week gaps */}
-                  <span className="th-week-date" style={{ position: "sticky", left: totLeft + 64 + 4 }}>{formatWeekRange(w)}</span>
+                  {/* Plain centered label — stays still in its own column and scrolls with the
+                      grid like the rest of the timeline (no sticky-follow toward the freeze line). */}
+                  <span className="th-week-date">{formatWeekRange(w)}</span>
                 </th>
               ))}
             </tr>
@@ -778,6 +787,21 @@ export function PlannerGrid({
                           <span className="st-dot" style={{ background: STATUS_DOT_COLOR[task.status] }} />
                           {STATUS_LABEL[task.status]}
                         </button>
+                        {/* Details indicator — shows when the task has notes and/or links; opens the details modal */}
+                        {(task.notes?.trim() || (task.links?.length ?? 0) > 0) && (
+                          <button
+                            className="task-detail-chip"
+                            title="View task details"
+                            onClick={e => { e.stopPropagation(); setDetailsTask({ task, tab: "details" }); }}
+                          >
+                            {task.notes?.trim() && <FileText size={11} />}
+                            {(task.links?.length ?? 0) > 0 && (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                                <Link2 size={11} />{task.links!.length}
+                              </span>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -914,7 +938,11 @@ export function PlannerGrid({
           onViewHistory={onRowHistoryClick}
           onViewTaskHistory={(taskId) => {
             const t = tasks.find(t => t.id === taskId);
-            if (t) setTaskHistoryTask(t);
+            if (t) setDetailsTask({ task: t, tab: "changes" });
+          }}
+          onViewTaskDetails={(taskId) => {
+            const t = tasks.find(t => t.id === taskId);
+            if (t) setDetailsTask({ task: t, tab: "details" });
           }}
           onArchive={onArchiveProject}
           onDelete={(id, type) => {
@@ -929,13 +957,15 @@ export function PlannerGrid({
       )}
 
 
-      {/* Task history modal */}
-      {taskHistoryTask && (
-        <TaskHistoryModal
-          task={taskHistoryTask}
+      {/* Task details modal (Details / Changes / Mandays tabs) */}
+      {detailsTask && (
+        <TaskDetailsModal
+          task={detailsTask.task}
+          initialTab={detailsTask.tab}
           boardOwnerId={boardOwnerId}
           roles={roles}
-          onClose={() => setTaskHistoryTask(null)}
+          onUpdateTask={onUpdateTask}
+          onClose={() => setDetailsTask(null)}
         />
       )}
 
