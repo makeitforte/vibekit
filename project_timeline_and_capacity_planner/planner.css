@@ -81,6 +81,40 @@
   gap: 8px;
 }
 
+/* Search box */
+.toolbar-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-1);
+  min-width: 180px;
+  transition: border-color 120ms;
+}
+.toolbar-search:focus-within { border-color: var(--accent-border); }
+.toolbar-search-icon { color: var(--fg-4); flex-shrink: 0; }
+.toolbar-search input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--fg-1);
+  flex: 1;
+  min-width: 0;
+}
+.toolbar-search-clear {
+  display: inline-flex;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--fg-4);
+  padding: 0;
+  flex-shrink: 0;
+}
+.toolbar-search-clear:hover { color: var(--fg-1); }
+
 /* Filter chips */
 .filter-chip {
   display: inline-flex;
@@ -100,6 +134,8 @@
 }
 .filter-chip:hover { border-color: var(--border-strong); color: var(--fg-1); }
 .filter-chip.active { border-color: var(--accent-border); background: var(--accent-muted); color: var(--accent-text); }
+.filter-chip:disabled { opacity: 0.45; cursor: default; }
+.filter-chip:disabled:hover { border-color: var(--border-subtle); color: var(--fg-2); }
 
 /* Date range pill */
 .date-pill {
@@ -185,6 +221,24 @@
   padding: 5px 8px;
 }
 .th-week-group.first { border-left: 2px solid var(--border-strong); }
+/* Current-week column highlight — header accent + "This week" marker; the thin
+   vertical accent line is drawn by .wk-cur-edge on the week's first cell in every row. */
+.th-week-group.cur-week {
+  background: var(--accent-muted);
+  border-left: 2px solid var(--accent);
+}
+.th-week-now {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-text);
+  margin-top: 1px;
+}
+/* Thin vertical accent line marking the start of the current week, down all rows */
+.wk-cur-edge { border-left: 2px solid var(--accent) !important; }
 .th-week-date {
   font-family: var(--font-mono);
   font-size: 10.5px;
@@ -444,6 +498,24 @@
   transition: border-color 120ms, color 120ms;
 }
 .task-detail-chip:hover { border-color: var(--border-strong); color: var(--fg-1); }
+
+/* Overdue flag — open task with mandays in an elapsed week */
+.task-overdue-flag {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  cursor: help;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
 
 .st-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 .st-ip  { background: rgba(59, 130, 246, 0.10); color: #1d4ed8; }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { Plus, GripVertical, FileText, Link2 } from "lucide-react";
+import { GripVertical, FileText, Link2, Search, Filter, X, AlertTriangle, CalendarClock } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import {
@@ -10,7 +10,7 @@ import {
 } from "./types";
 import { HistoryEntry } from "./queries";
 import {
-  formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta,
+  formatWeekRange, computeWeekRoleSummary, getTaskTotalEffort, deriveTaskEta, toWeekStart,
 } from "./utils";
 import { TaskDetailsModal } from "./task-details-modal";
 import { cn } from "@/lib/cn";
@@ -94,6 +94,53 @@ function solidTint(hex: string, alpha = 0.18): string {
   const G = Math.round(255 * (1 - alpha) + g * alpha);
   const B = Math.round(255 * (1 - alpha) + b * alpha);
   return `rgb(${R},${G},${B})`;
+}
+
+/** Returns a new Set with `value` toggled — used by the view filters. */
+function toggleSet<T>(set: Set<T>, value: T): Set<T> {
+  const next = new Set(set);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  return next;
+}
+
+// Statuses that count as "still open" — a task in any of these with effort planned
+// in an already-elapsed week is overdue and worth re-checking.
+const OPEN_STATUSES = new Set<TaskStatus>(["todo", "prd_in_progress", "prd_ready", "in_progress"]);
+
+/**
+ * Read-only detector (no cascade/effort mutation): an OPEN task is "overdue"
+ * only when ALL of its planned effort sits in elapsed weeks — i.e. it has
+ * mandays in a week before `currentWeekStart` AND nothing in the current week
+ * or any future week. A task that still has effort scheduled now/ahead is
+ * considered live and is NOT flagged. Scans ALL weeks in the effort map (not
+ * just the visible date range). Returns past-week mandays + the oldest such
+ * week, or null.
+ */
+function getOverdueEffort(
+  task: Task,
+  effortMap: EffortMap,
+  currentWeekStart: string,
+): { mandays: number; oldestWeek: string } | null {
+  if (!OPEN_STATUSES.has(task.status)) return null;
+  const roleMap = effortMap[task.id];
+  if (!roleMap) return null;
+  let mandays = 0;
+  let oldestWeek: string | null = null;
+  for (const roleId in roleMap) {
+    for (const week in roleMap[roleId]) {
+      const md = roleMap[roleId][week];
+      if (md <= 0) continue;
+      if (week < currentWeekStart) {
+        mandays += md;
+        if (!oldestWeek || week < oldestWeek) oldestWeek = week;
+      } else {
+        // Effort in the current or a future week → task is still on the plan.
+        return null;
+      }
+    }
+  }
+  return oldestWeek ? { mandays, oldestWeek } : null;
 }
 
 // ── ContextMenu ───────────────────────────────────────────────────────────────
@@ -347,11 +394,12 @@ interface EffortInputProps {
   roleIdx: number;
   weekStart: string;
   isWeekStart: boolean;
+  curWeekEdge?: boolean;
   effortMap: EffortMap;
   onBlur: (taskId: string, roleId: string, weekStart: string, val: number, oldVal: number) => void;
 }
 
-function EffortInput({ taskId, roleId, roleIdx, weekStart, isWeekStart, effortMap, onBlur }: EffortInputProps) {
+function EffortInput({ taskId, roleId, roleIdx, weekStart, isWeekStart, curWeekEdge, effortMap, onBlur }: EffortInputProps) {
   const current = effortMap[taskId]?.[roleId]?.[weekStart] ?? 0;
   const [val, setVal] = useState(current > 0 ? String(current) : "");
 
@@ -362,7 +410,7 @@ function EffortInput({ taskId, roleId, roleIdx, weekStart, isWeekStart, effortMa
   const ecClass = ROLE_EC_CLASS[roleIdx % ROLE_EC_CLASS.length];
 
   return (
-    <td className={cn("effort-cell", ecClass, isWeekStart && "wk-start")}>
+    <td className={cn("effort-cell", ecClass, isWeekStart && "wk-start", curWeekEdge && "wk-cur-edge")}>
       <input
         type="text"
         inputMode="decimal"
@@ -385,15 +433,16 @@ interface CapInputProps {
   value: number;
   className?: string;
   isWeekStart?: boolean;
+  curWeekEdge?: boolean;
   onChange: (val: number) => void;
 }
 
-function CapInput({ value, className, isWeekStart, onChange }: CapInputProps) {
+function CapInput({ value, className, isWeekStart, curWeekEdge, onChange }: CapInputProps) {
   const [local, setLocal] = useState(value > 0 ? String(value) : "");
   useEffect(() => setLocal(value > 0 ? String(value) : ""), [value]);
 
   return (
-    <td className={cn("sum-val", isWeekStart && "wk-start")}>
+    <td className={cn("sum-val", isWeekStart && "wk-start", curWeekEdge && "wk-cur-edge")}>
       <input
         className={cn("cap-input", className)}
         type="text"
@@ -422,6 +471,14 @@ export function PlannerGrid({
 }: Props) {
   const [statusTarget,   setStatusTarget]   = useState<{ rect: DOMRect; id: string; type: "project" | "task" } | null>(null);
   const [detailsTask, setDetailsTask] = useState<{ task: Task; tab: "details" | "changes" | "mandays" } | null>(null);
+  // ── Search & filter (view-only: hides rows / role columns; never changes the
+  //    task set fed to summaries / threshold detection / cascade) ──
+  const [search,         setSearch]         = useState("");
+  const [statusFilter,   setStatusFilter]   = useState<Set<TaskStatus>>(new Set());
+  const [priorityFilter, setPriorityFilter] = useState<Set<"P1" | "P2" | "P3">>(new Set());
+  const [projectFilter,  setProjectFilter]  = useState<Set<string>>(new Set());
+  const [hiddenRoleIds,  setHiddenRoleIds]  = useState<Set<string>>(new Set());
+  const [needsAttention, setNeedsAttention] = useState(false); // show only overdue open tasks
   const [editingId,         setEditingId]         = useState<string | null>(null);
   const [editingName,       setEditingName]       = useState("");
   const [ctxMenu,           setCtxMenu]           = useState<CtxState | null>(null);
@@ -430,6 +487,7 @@ export function PlannerGrid({
   const [editingEtaValue,   setEditingEtaValue]   = useState("");
   const [featColWidth,   setFeatColWidth]   = useState(260);
   const resizeDrag = useRef<{ startX: number; startW: number } | null>(null);
+  const currentWeekRef = useRef<HTMLTableCellElement>(null); // current-week header cell (jump target)
   // Computed offsets for dependent sticky cols
   const priLeft = 64 + featColWidth;
   const etaLeft = priLeft + 52;
@@ -554,6 +612,38 @@ export function PlannerGrid({
 
   const allTaskIds = sortedTasks.map(t => t.id);
 
+  // ── Search & filter (view layer only) ──────────────────────────────────────
+  // visibleRoles drives which role COLUMNS render; filteredTasks drives which
+  // task ROWS render. Crucially, `allTaskIds` above stays the FULL set so the
+  // summary rows, thresholdBreachCount, and cascade keep their global truth —
+  // filtering must never silently change the capacity picture (cascade-safe).
+  const roleIndexById = new Map(roles.map((r, i) => [r.id, i])); // stable colour index
+  const visibleRoles  = roles.filter(r => !hiddenRoleIds.has(r.id));
+  const currentWeekStart = toWeekStart(new Date()); // Monday of the current week
+  const currentWeekInRange = weeks.includes(currentWeekStart);
+  const scrollToCurrentWeek = () =>
+    currentWeekRef.current?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+
+  const effectivePriLabel = (task: Task): "P1" | "P2" | "P3" => {
+    if (task.priority_label) return task.priority_label;
+    const p = sortedProjects.find(pr => pr.id === task.project_id);
+    return p ? resolveLabel(p, sortedProjects.indexOf(p)) : "P3";
+  };
+
+  const q = search.trim().toLowerCase();
+  const filteredTasks = sortedTasks.filter(task => {
+    if (statusFilter.size   && !statusFilter.has(task.status))               return false;
+    if (priorityFilter.size && !priorityFilter.has(effectivePriLabel(task))) return false;
+    if (projectFilter.size  && !projectFilter.has(task.project_id))          return false;
+    if (needsAttention      && !getOverdueEffort(task, effortMap, currentWeekStart)) return false;
+    if (q) {
+      const proj = sortedProjects.find(p => p.id === task.project_id);
+      if (!`${task.name} ${proj?.name ?? ""}`.toLowerCase().includes(q))     return false;
+    }
+    return true;
+  });
+  const rowFiltersActive = !!q || statusFilter.size > 0 || priorityFilter.size > 0 || projectFilter.size > 0 || needsAttention;
+
   // ── Detect threshold breaches (cascade needed) ────────────────────────────
   // Show cascade banner when buffer drops below the configured min threshold.
   // Weeks without explicitly set capacity are ignored.
@@ -567,7 +657,18 @@ export function PlannerGrid({
   if (projects.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-        <GridToolbar dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles} />
+        <GridToolbar
+          dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles}
+          projects={sortedProjects}
+          search={search} onSearchChange={setSearch}
+          statusFilter={statusFilter} onToggleStatus={(s) => setStatusFilter(toggleSet(statusFilter, s))}
+          priorityFilter={priorityFilter} onTogglePriority={(p) => setPriorityFilter(toggleSet(priorityFilter, p))}
+          projectFilter={projectFilter} onToggleProject={(id) => setProjectFilter(toggleSet(projectFilter, id))}
+          hiddenRoleIds={hiddenRoleIds} onToggleRole={(id) => setHiddenRoleIds(toggleSet(hiddenRoleIds, id))}
+          needsAttention={needsAttention} onToggleNeedsAttention={() => setNeedsAttention(v => !v)}
+          onClearFilters={() => { setStatusFilter(new Set()); setPriorityFilter(new Set()); setProjectFilter(new Set()); setNeedsAttention(false); }}
+          onJumpToCurrentWeek={scrollToCurrentWeek} canJumpToCurrentWeek={currentWeekInRange}
+        />
         <div className="planner-empty" style={{ flex: 1 }}>
           <div className="planner-empty-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -582,7 +683,18 @@ export function PlannerGrid({
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Toolbar */}
-      <GridToolbar dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles} />
+      <GridToolbar
+        dateRange={dateRange} onDateRangeChange={onDateRangeChange} roles={roles}
+        projects={sortedProjects}
+        search={search} onSearchChange={setSearch}
+        statusFilter={statusFilter} onToggleStatus={(s) => setStatusFilter(toggleSet(statusFilter, s))}
+        priorityFilter={priorityFilter} onTogglePriority={(p) => setPriorityFilter(toggleSet(priorityFilter, p))}
+        projectFilter={projectFilter} onToggleProject={(id) => setProjectFilter(toggleSet(projectFilter, id))}
+        hiddenRoleIds={hiddenRoleIds} onToggleRole={(id) => setHiddenRoleIds(toggleSet(hiddenRoleIds, id))}
+        needsAttention={needsAttention} onToggleNeedsAttention={() => setNeedsAttention(v => !v)}
+        onClearFilters={() => { setStatusFilter(new Set()); setPriorityFilter(new Set()); setProjectFilter(new Set()); setNeedsAttention(false); }}
+        onJumpToCurrentWeek={scrollToCurrentWeek} canJumpToCurrentWeek={currentWeekInRange}
+      />
 
       {/* Cascade banner — shows when any role/week is below its min buffer threshold */}
       {thresholdBreachCount > 0 && (
@@ -669,13 +781,22 @@ export function PlannerGrid({
                   }}
                 />
               </th>
-              {weeks.map((w, i) => (
-                <th key={w} colSpan={roles.length} className={cn("th-week-group", i === 0 && "first")}>
-                  {/* Plain centered label — stays still in its own column and scrolls with the
-                      grid like the rest of the timeline (no sticky-follow toward the freeze line). */}
-                  <span className="th-week-date">{formatWeekRange(w)}</span>
-                </th>
-              ))}
+              {visibleRoles.length > 0 && weeks.map((w, i) => {
+                const isCur = w === currentWeekStart;
+                return (
+                  <th
+                    key={w}
+                    ref={isCur ? currentWeekRef : undefined}
+                    colSpan={visibleRoles.length}
+                    className={cn("th-week-group", i === 0 && "first", isCur && "cur-week")}
+                  >
+                    {/* Plain centered label — stays still in its own column and scrolls with the
+                        grid like the rest of the timeline (no sticky-follow toward the freeze line). */}
+                    <span className="th-week-date">{formatWeekRange(w)}</span>
+                    {isCur && <span className="th-week-now">This week</span>}
+                  </th>
+                );
+              })}
             </tr>
             {/* Role sub-headers */}
             <tr className="thead-role" style={{ top: weekRowHeight }}>
@@ -685,11 +806,11 @@ export function PlannerGrid({
               <th className="col-pri th-sticky" style={{ left: priLeft }} />
               <th className="col-eta th-sticky" style={{ left: etaLeft }} />
               <th className="col-tot th-sticky" style={{ left: totLeft }} />
-              {weeks.map((w, wi) =>
-                roles.map((role, ri) => (
+              {weeks.map((w) =>
+                visibleRoles.map((role, ri) => (
                   <th
                     key={`${w}-${role.id}`}
-                    className={cn("th-role", ri === 0 && "first")}
+                    className={cn("th-role", ri === 0 && "first", w === currentWeekStart && ri === 0 && "wk-cur-edge")}
                     style={{ color: role.color, background: solidTint(role.color, 0.32) }}
                   >
                     {role.name}
@@ -700,10 +821,11 @@ export function PlannerGrid({
           </thead>
 
           <tbody>
-            {/* ── Summary rows ── */}
+            {/* ── Summary rows ── (computed over ALL tasks; only role columns are filtered) */}
             <SummaryRows
-              roles={roles}
+              roles={visibleRoles}
               weeks={weeks}
+              currentWeekStart={currentWeekStart}
               allTaskIds={allTaskIds}
               capacityMap={capacityMap}
               effortMap={effortMap}
@@ -717,8 +839,8 @@ export function PlannerGrid({
               firstRowRef={sumRowRef}
             />
 
-            {/* ── Flat task list (Option A) ── */}
-            {sortedTasks.map((task) => {
+            {/* ── Flat task list (Option A) — view-filtered rows ── */}
+            {filteredTasks.map((task) => {
               const id           = task.id;
               const proj         = sortedProjects.find(p => p.id === task.project_id);
               const projColor    = proj ? projColorMap[proj.id] : { bg: "var(--surface-3)", text: "var(--fg-4)", border: "var(--border-subtle)" };
@@ -726,6 +848,7 @@ export function PlannerGrid({
               const isDragging   = draggingId === id;
               const isDropTarget = dropTargetId === id;
               const totalEffort  = getTaskTotalEffort(task.id, effortMap);
+              const overdue      = getOverdueEffort(task, effortMap, currentWeekStart);
 
               return (
                 <tr
@@ -787,6 +910,15 @@ export function PlannerGrid({
                           <span className="st-dot" style={{ background: STATUS_DOT_COLOR[task.status] }} />
                           {STATUS_LABEL[task.status]}
                         </button>
+                        {/* Overdue flag — open task with effort planned in an already-elapsed week */}
+                        {overdue && (
+                          <span
+                            className="task-overdue-flag"
+                            title={`${overdue.mandays} manday(s) planned in past week(s) (since ${formatWeekRange(overdue.oldestWeek)}), nothing scheduled this week or later, and the task isn't done — re-check.`}
+                          >
+                            <AlertTriangle size={11} /> Re-check
+                          </span>
+                        )}
                         {/* Details indicator — shows when the task has notes and/or links; opens the details modal */}
                         {(task.notes?.trim() || (task.links?.length ?? 0) > 0) && (
                           <button
@@ -885,10 +1017,11 @@ export function PlannerGrid({
                   })()}</td>
                   <td className="col-tot total-cell" style={{ left: totLeft }}>{totalEffort > 0 ? totalEffort : "—"}</td>
                   {weeks.map((w) =>
-                    roles.map((role, ri) => (
+                    visibleRoles.map((role, ri) => (
                       <EffortInput key={`${w}-${role.id}`}
-                        taskId={task.id} roleId={role.id} roleIdx={ri}
+                        taskId={task.id} roleId={role.id} roleIdx={roleIndexById.get(role.id) ?? ri}
                         weekStart={w} isWeekStart={ri === 0}
+                        curWeekEdge={w === currentWeekStart && ri === 0}
                         effortMap={effortMap} onBlur={onUpsertEffort}
                       />
                     ))
@@ -896,6 +1029,18 @@ export function PlannerGrid({
                 </tr>
               );
             })}
+
+            {/* No-match state — only when row filters are active and hide everything */}
+            {rowFiltersActive && filteredTasks.length === 0 && (
+              <tr>
+                <td
+                  colSpan={6 + weeks.length * visibleRoles.length}
+                  style={{ padding: "28px 16px", textAlign: "center", color: "var(--fg-4)", fontFamily: "var(--font-mono)", fontSize: 11.5 }}
+                >
+                  No tasks match the current search / filters.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -1011,6 +1156,7 @@ export function PlannerGrid({
 interface SummaryRowsProps {
   roles: Role[];
   weeks: string[];
+  currentWeekStart: string;
   allTaskIds: string[];
   capacityMap: CapacityMap;
   effortMap: EffortMap;
@@ -1028,7 +1174,8 @@ interface SummaryRowsProps {
   firstRowRef: React.RefObject<HTMLTableRowElement | null>;
 }
 
-function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpsertCapacity, featColWidth, priLeft, etaLeft, totLeft, topBase, rowHeight, firstRowRef }: SummaryRowsProps) {
+function SummaryRows({ roles, weeks, currentWeekStart, allTaskIds, capacityMap, effortMap, onUpsertCapacity, featColWidth, priLeft, etaLeft, totLeft, topBase, rowHeight, firstRowRef }: SummaryRowsProps) {
+  const curEdge = (w: string, ri: number) => w === currentWeekStart && ri === 0;
   const topFor = (i: number) => topBase + i * rowHeight;
 
   const featStyle: React.CSSProperties = { width: featColWidth, minWidth: featColWidth, left: 64 };
@@ -1058,6 +1205,7 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
                 key={`${w}-${role.id}`}
                 value={cap?.capacity ?? 0}
                 isWeekStart={ri === 0}
+                curWeekEdge={curEdge(w, ri)}
                 onChange={(v) => onUpsertCapacity(role.id, w, "capacity", v)}
               />
             );
@@ -1076,7 +1224,7 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
           roles.map((role, ri) => {
             const req = allTaskIds.reduce((s, tid) => s + (effortMap[tid]?.[role.id]?.[w] ?? 0), 0);
             return (
-              <td key={`${w}-${role.id}`} className={cn("sum-val sum-val-req", ri === 0 && "wk-start")}>
+              <td key={`${w}-${role.id}`} className={cn("sum-val sum-val-req", ri === 0 && "wk-start", curEdge(w, ri) && "wk-cur-edge")}>
                 {req > 0 ? req : "—"}
               </td>
             );
@@ -1097,6 +1245,7 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
                 key={`${w}-${role.id}`}
                 value={cap?.taken_other ?? 0}
                 isWeekStart={ri === 0}
+                curWeekEdge={curEdge(w, ri)}
                 onChange={(v) => onUpsertCapacity(role.id, w, "taken_other", v)}
               />
             );
@@ -1117,6 +1266,7 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
                 key={`${w}-${role.id}`}
                 value={cap?.holiday ?? 0}
                 isWeekStart={ri === 0}
+                curWeekEdge={curEdge(w, ri)}
                 className={cap?.holiday ? "cap-input-warn" : undefined}
                 onChange={(v) => onUpsertCapacity(role.id, w, "holiday", v)}
               />
@@ -1137,7 +1287,7 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
             const isNegative       = s.capacity > 0 && s.buffer < 0;
             const cls = isNegative ? "buf-neg buf-neg-bg" : isBelowThreshold ? "buf-warn" : "buf-pos";
             return (
-              <td key={`${w}-${role.id}`} className={cn("sum-val", cls, ri === 0 && "wk-start")}>
+              <td key={`${w}-${role.id}`} className={cn("sum-val", cls, ri === 0 && "wk-start", curEdge(w, ri) && "wk-cur-edge")}>
                 {s.buffer > 0 ? `+${s.buffer}` : s.buffer < 0 ? s.buffer : "—"}
               </td>
             );
@@ -1161,6 +1311,7 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
                 key={`${w}-${role.id}`}
                 value={cap?.buffer_threshold ?? 0}
                 isWeekStart={ri === 0}
+                curWeekEdge={curEdge(w, ri)}
                 className="cap-input-thr"
                 onChange={(v) => onUpsertCapacity(role.id, w, "buffer_threshold", v)}
               />
@@ -1174,26 +1325,83 @@ function SummaryRows({ roles, weeks, allTaskIds, capacityMap, effortMap, onUpser
 
 // ── Grid Toolbar ──────────────────────────────────────────────────────────────
 
-function GridToolbar({ dateRange, onDateRangeChange, roles }: {
+interface GridToolbarProps {
   dateRange: PlannerDateRange;
   onDateRangeChange: (r: PlannerDateRange) => void;
   roles: Role[];
-}) {
+  projects: Project[];
+  search: string;
+  onSearchChange: (v: string) => void;
+  statusFilter: Set<TaskStatus>;
+  onToggleStatus: (s: TaskStatus) => void;
+  priorityFilter: Set<"P1" | "P2" | "P3">;
+  onTogglePriority: (p: "P1" | "P2" | "P3") => void;
+  projectFilter: Set<string>;
+  onToggleProject: (id: string) => void;
+  hiddenRoleIds: Set<string>;
+  onToggleRole: (id: string) => void;
+  needsAttention: boolean;
+  onToggleNeedsAttention: () => void;
+  onClearFilters: () => void;
+  onJumpToCurrentWeek: () => void;
+  canJumpToCurrentWeek: boolean;
+}
+
+function GridToolbar(props: GridToolbarProps) {
+  const {
+    dateRange, onDateRangeChange, roles, search, onSearchChange,
+    hiddenRoleIds, onToggleRole, onJumpToCurrentWeek, canJumpToCurrentWeek,
+  } = props;
+
   return (
     <div className="planner-toolbar">
-      {roles.map((role) => (
-        <button
-          key={role.id}
-          className="filter-chip active"
-          style={{ background: solidTint(role.color), borderColor: `${role.color}60`, color: role.color }}
-        >
-          {role.name}
-        </button>
-      ))}
-      <button className="filter-chip" style={{ borderStyle: "dashed" }}>
-        <Plus size={10} /> Add role
-      </button>
+      {/* Search */}
+      <div className="toolbar-search">
+        <Search size={12} className="toolbar-search-icon" />
+        <input
+          type="text"
+          value={search}
+          placeholder="Search tasks…"
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+        {search && (
+          <button type="button" className="toolbar-search-clear" onClick={() => onSearchChange("")} title="Clear search">
+            <X size={11} />
+          </button>
+        )}
+      </div>
+
+      {/* Status / Priority / Project filters */}
+      <FilterButton {...props} />
+
+      <div style={{ width: 1, height: 18, background: "var(--border-subtle)", flexShrink: 0, margin: "0 2px" }} />
+
+      {/* Role column toggles — click to show/hide that role's columns */}
+      {roles.map((role) => {
+        const visible = !hiddenRoleIds.has(role.id);
+        return (
+          <button
+            key={role.id}
+            className={cn("filter-chip", visible && "active")}
+            style={visible ? { background: solidTint(role.color), borderColor: `${role.color}60`, color: role.color } : undefined}
+            title={`${visible ? "Hide" : "Show"} ${role.name} columns`}
+            onClick={() => onToggleRole(role.id)}
+          >
+            {role.name}
+          </button>
+        );
+      })}
+
       <div className="toolbar-right">
+        <button
+          type="button"
+          className="filter-chip"
+          onClick={onJumpToCurrentWeek}
+          disabled={!canJumpToCurrentWeek}
+          title={canJumpToCurrentWeek ? "Scroll to the current week" : "Current week is outside the selected date range"}
+        >
+          <CalendarClock size={11} /> This week
+        </button>
         <span className="toolbar-label">Start</span>
         <input
           type="date"
@@ -1211,5 +1419,151 @@ function GridToolbar({ dateRange, onDateRangeChange, roles }: {
         />
       </div>
     </div>
+  );
+}
+
+// ── Filter dropdown (status / priority / project) ──────────────────────────────
+
+function FilterButton({
+  projects, statusFilter, onToggleStatus, priorityFilter, onTogglePriority,
+  projectFilter, onToggleProject, needsAttention, onToggleNeedsAttention, onClearFilters,
+}: GridToolbarProps) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const count = statusFilter.size + priorityFilter.size + projectFilter.size + (needsAttention ? 1 : 0);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className={cn("filter-chip", count > 0 && "active")}
+        onClick={() => { setRect(btnRef.current?.getBoundingClientRect() ?? null); setOpen(o => !o); }}
+        title="Filter by status, priority, or project"
+      >
+        <Filter size={11} /> Filters{count > 0 ? ` · ${count}` : ""}
+      </button>
+      {open && rect && (
+        <FilterPopover
+          rect={rect}
+          projects={projects}
+          statusFilter={statusFilter} onToggleStatus={onToggleStatus}
+          priorityFilter={priorityFilter} onTogglePriority={onTogglePriority}
+          projectFilter={projectFilter} onToggleProject={onToggleProject}
+          needsAttention={needsAttention} onToggleNeedsAttention={onToggleNeedsAttention}
+          onClear={onClearFilters}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function FilterPopover({
+  rect, projects, statusFilter, onToggleStatus, priorityFilter, onTogglePriority,
+  projectFilter, onToggleProject, needsAttention, onToggleNeedsAttention, onClear, onClose,
+}: {
+  rect: DOMRect;
+  projects: Project[];
+  statusFilter: Set<TaskStatus>;
+  onToggleStatus: (s: TaskStatus) => void;
+  priorityFilter: Set<"P1" | "P2" | "P3">;
+  onTogglePriority: (p: "P1" | "P2" | "P3") => void;
+  projectFilter: Set<string>;
+  onToggleProject: (id: string) => void;
+  needsAttention: boolean;
+  onToggleNeedsAttention: () => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const el = document.getElementById("filter-popover-inner");
+      if (el && el.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  const count = statusFilter.size + priorityFilter.size + projectFilter.size + (needsAttention ? 1 : 0);
+  const sectionTitle: React.CSSProperties = {
+    padding: "0 0 5px", fontFamily: "var(--font-mono)", fontSize: 10,
+    textTransform: "uppercase", letterSpacing: ".06em", color: "var(--fg-4)",
+  };
+
+  return createPortal(
+    <div
+      id="filter-popover-inner"
+      className="status-portal"
+      style={{ position: "absolute", top: rect.bottom + window.scrollY + 5, left: rect.left + window.scrollX, minWidth: 240, maxWidth: 300, padding: 12 }}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {/* Needs attention — overdue open tasks (effort planned in an elapsed week) */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--fg-1)", cursor: "pointer" }}>
+          <input type="checkbox" checked={needsAttention} onChange={onToggleNeedsAttention} />
+          <AlertTriangle size={12} style={{ color: "#b45309", flexShrink: 0 }} />
+          <span>Needs attention <span style={{ color: "var(--fg-4)" }}>· past-due effort</span></span>
+        </label>
+      </div>
+
+      {/* Status */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={sectionTitle}>Status</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {TASK_STATUSES.map(({ value, label, dot }) => {
+            const on = statusFilter.has(value);
+            return (
+              <button key={value} type="button" className={cn("filter-chip", on && "active")} onClick={() => onToggleStatus(value)}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: dot, display: "inline-block", marginRight: 4 }} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Priority */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={sectionTitle}>Priority</div>
+        <div style={{ display: "flex", gap: 5 }}>
+          {PRI_LEVELS.map((p) => {
+            const on = priorityFilter.has(p);
+            return (
+              <button key={p} type="button" className={cn("filter-chip", on && "active")} onClick={() => onTogglePriority(p)}>
+                <span className={PRI_CLASS[p]} style={{ padding: "1px 6px", fontSize: 10 }}>{p}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Project */}
+      <div>
+        <div style={sectionTitle}>Project</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, maxHeight: 180, overflowY: "auto" }}>
+          {projects.length === 0 && <span style={{ fontSize: 11, color: "var(--fg-4)" }}>No projects</span>}
+          {projects.map((p) => {
+            const on = projectFilter.has(p.id);
+            return (
+              <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--fg-2)", cursor: "pointer", padding: "2px 0" }}>
+                <input type="checkbox" checked={on} onChange={() => onToggleProject(p.id)} />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {count > 0 && (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-4)" }}>{count} active</span>
+          <button type="button" className="filter-chip" onClick={onClear}>Clear all</button>
+        </div>
+      )}
+    </div>,
+    document.body,
   );
 }
