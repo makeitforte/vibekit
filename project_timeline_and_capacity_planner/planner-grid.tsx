@@ -748,7 +748,7 @@ export function PlannerGrid({
               <th className="col-drag th-sticky" style={{ left: 36 }} />
               {/* Resizable Feature/Task column — inline style overrides CSS default width */}
               <th className="col-feat th-sticky th-col-header"
-                style={{ width: featColWidth, minWidth: featColWidth, position: "sticky", left: 64 }}>
+                style={{ width: featColWidth, minWidth: featColWidth, maxWidth: featColWidth, position: "sticky", left: 64 }}>
                 Feature / Task
               </th>
               <th className="col-pri th-sticky th-col-header center" style={{ left: priLeft }}>Pri</th>
@@ -802,7 +802,7 @@ export function PlannerGrid({
             <tr className="thead-role" style={{ top: weekRowHeight }}>
               <th className="col-cb th-sticky" style={{ left: 0 }} />
               <th className="col-drag th-sticky" style={{ left: 36 }} />
-              <th className="col-feat th-sticky" style={{ width: featColWidth, minWidth: featColWidth, left: 64 }} />
+              <th className="col-feat th-sticky" style={{ width: featColWidth, minWidth: featColWidth, maxWidth: featColWidth, left: 64 }} />
               <th className="col-pri th-sticky" style={{ left: priLeft }} />
               <th className="col-eta th-sticky" style={{ left: etaLeft }} />
               <th className="col-tot th-sticky" style={{ left: totLeft }} />
@@ -865,7 +865,7 @@ export function PlannerGrid({
                     <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(id)} />
                   </td>
                   <td className="col-drag drag-handle" style={{ left: 36 }}>⠿</td>
-                  <td className="col-feat" style={{ width: featColWidth, minWidth: featColWidth, left: 64 }}>
+                  <td className="col-feat" style={{ width: featColWidth, minWidth: featColWidth, maxWidth: featColWidth, left: 64 }}>
                     <div className="feat-cell feat-cell-stacked">
                       {/* Line 1 — task name gets the full row width to itself */}
                       <div className="feat-line-name">
@@ -1178,7 +1178,7 @@ function SummaryRows({ roles, weeks, currentWeekStart, allTaskIds, capacityMap, 
   const curEdge = (w: string, ri: number) => w === currentWeekStart && ri === 0;
   const topFor = (i: number) => topBase + i * rowHeight;
 
-  const featStyle: React.CSSProperties = { width: featColWidth, minWidth: featColWidth, left: 64 };
+  const featStyle: React.CSSProperties = { width: featColWidth, minWidth: featColWidth, maxWidth: featColWidth, left: 64 };
   const priStyle:  React.CSSProperties = { left: priLeft };
   const etaStyle:  React.CSSProperties = { left: etaLeft };
   const totStyle:  React.CSSProperties = { left: totLeft };
