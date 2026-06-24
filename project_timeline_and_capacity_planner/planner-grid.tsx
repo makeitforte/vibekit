@@ -533,6 +533,9 @@ export function PlannerGrid({
   const gridViewRef   = useRef<HTMLDivElement>(null);
   const [draggingId,   setDraggingId]   = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [dropPos,      setDropPos]      = useState<"above" | "below">("above");
+  // Latest hovered target + side, read fresh on drop (avoids stale state in the handler).
+  const dropInfo = useRef<{ id: string; pos: "above" | "below" } | null>(null);
 
   const stopAutoScroll = () => {
     if (scrollTimer.current) { clearInterval(scrollTimer.current); scrollTimer.current = null; }
@@ -551,14 +554,33 @@ export function PlannerGrid({
   const getTaskIndex = (id: string) =>
     [...tasks].sort((a, b) => a.priority_order - b.priority_order).findIndex(t => t.id === id);
 
-  const handleDragStart = (id: string, type: "project" | "task") => {
+  const handleDragStart = (e: React.DragEvent, id: string, type: "project" | "task") => {
     dragSrc.current = { id, type };
     setDraggingId(id);
+    // Custom drag preview — a compact name pill that tracks the cursor cleanly,
+    // instead of the native row screenshot (which is wide and offset by sticky cols).
+    const task = tasks.find(t => t.id === id);
+    if (task && e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      const ghost = document.createElement("div");
+      ghost.className = "drag-ghost";
+      ghost.textContent = task.name;
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost, 14, 14);
+      // Remove after the browser has snapshotted it for the drag image.
+      setTimeout(() => ghost.remove(), 0);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
-    setDropTargetId(id);
+    // Direction-aware: which half of the hovered row is the cursor in? Top → insert
+    // above, bottom → insert below. Keeps the drop line matching where the row lands.
+    const rowRect = e.currentTarget.getBoundingClientRect();
+    const pos: "above" | "below" = e.clientY < rowRect.top + rowRect.height / 2 ? "above" : "below";
+    if (dropTargetId !== id) setDropTargetId(id);
+    setDropPos(prev => (prev === pos ? prev : pos));
+    dropInfo.current = { id, pos };
     // Auto-scroll near grid edges
     const el = gridViewRef.current;
     if (!el) return;
@@ -580,17 +602,21 @@ export function PlannerGrid({
     const src = dragSrc.current;
     if (!src || src.id === targetId) return;
 
-    // Flat task reorder — freely cross project boundaries
+    // Use the side captured on the last dragover (above/below the target row) so the
+    // landing position matches the drop indicator the user saw. Reorder math only —
+    // does NOT touch cascade; onReorder just rewrites priority_order.
+    const pos = dropInfo.current?.id === targetId ? dropInfo.current.pos : "above";
     const _sortedProjects = [...projects].sort((a, b) => a.priority_order - b.priority_order);
     const _sortedTasks    = [...tasks].sort((a, b) => a.priority_order - b.priority_order);
-    const srcIdx = _sortedTasks.findIndex(t => t.id === src.id);
-    const tgtIdx = _sortedTasks.findIndex(t => t.id === targetId);
-    if (srcIdx >= 0 && tgtIdx >= 0) {
-      const reordered = [..._sortedTasks];
-      const [moved] = reordered.splice(srcIdx, 1);
-      reordered.splice(tgtIdx > srcIdx ? tgtIdx - 1 : tgtIdx, 0, moved);
-      onReorder(_sortedProjects.map(p => p.id), reordered.map(t => t.id));
-    }
+
+    const moved = _sortedTasks.find(t => t.id === src.id);
+    if (!moved) return;
+    const without = _sortedTasks.filter(t => t.id !== src.id);
+    const tgtIdx  = without.findIndex(t => t.id === targetId);
+    if (tgtIdx < 0) return;
+    const insertAt = pos === "below" ? tgtIdx + 1 : tgtIdx;
+    without.splice(insertAt, 0, moved);
+    onReorder(_sortedProjects.map(p => p.id), without.map(t => t.id));
   };
 
   // ── Flat task list (Option A — no project headers) ──────────────────────
@@ -846,20 +872,25 @@ export function PlannerGrid({
               const projColor    = proj ? projColorMap[proj.id] : { bg: "var(--surface-3)", text: "var(--fg-4)", border: "var(--border-subtle)" };
               const isSelected   = selectedRowIds.has(id);
               const isDragging   = draggingId === id;
-              const isDropTarget = dropTargetId === id;
+              const isDropTarget = dropTargetId === id && draggingId !== id;
               const totalEffort  = getTaskTotalEffort(task.id, effortMap);
               const overdue      = getOverdueEffort(task, effortMap, currentWeekStart);
 
               return (
                 <tr
                   key={id}
-                  className={cn("row-task", isSelected && "row-selected", isDragging && "row-dragging", isDropTarget && "row-drop-target")}
+                  className={cn(
+                    "row-task",
+                    isSelected && "row-selected",
+                    isDragging && "row-dragging",
+                    isDropTarget && (dropPos === "below" ? "row-drop-below" : "row-drop-above"),
+                  )}
                   draggable
                   onContextMenu={(e) => openCtx(e, id, "task", task.project_id, task.is_archived)}
-                  onDragStart={() => handleDragStart(id, "task")}
+                  onDragStart={(e) => handleDragStart(e, id, "task")}
                   onDragOver={(e) => handleDragOver(e, id)}
                   onDrop={(e) => handleDrop(e, id)}
-                  onDragEnd={() => { setDropTargetId(null); setDraggingId(null); dragSrc.current = null; stopAutoScroll(); }}
+                  onDragEnd={() => { setDropTargetId(null); setDraggingId(null); dragSrc.current = null; dropInfo.current = null; stopAutoScroll(); }}
                 >
                   <td className="col-cb cb-cell" style={{ left: 0 }}>
                     <input type="checkbox" checked={isSelected} onChange={() => onToggleSelect(id)} />

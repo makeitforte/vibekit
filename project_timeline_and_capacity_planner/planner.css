@@ -224,7 +224,9 @@
 /* Current-week column highlight — header accent + "This week" marker; the thin
    vertical accent line is drawn by .wk-cur-edge on the week's first cell in every row. */
 .th-week-group.cur-week {
-  background: var(--accent-muted);
+  /* MUST be opaque — this is a sticky header cell; a translucent rgba (--accent-muted)
+     lets body text bleed through as rows scroll underneath. #e8f6f0 = solid accent tint. */
+  background: #e8f6f0;
   border-left: 2px solid var(--accent);
 }
 .th-week-now {
@@ -386,13 +388,39 @@
 .row-selected td { background: var(--accent-muted) !important; }
 
 /* Dragging row — faded ghost */
-.row-dragging { opacity: 0.25; }
+.row-dragging { opacity: 0.4; cursor: grabbing; }
+.row-dragging td { transition: opacity 120ms ease; }
 
-/* Drop target — prominent 3px accent line + subtle tint */
-.row-drop-target td {
+/* Drop indicator — accent line on the side the row will actually land
+   (above/below the hovered row), matching the direction-aware drop logic. */
+.row-drop-above td,
+.row-drop-below td {
   background: rgba(22, 162, 104, 0.05) !important;
-  box-shadow: 0 -3px 0 0 var(--accent) inset !important;
-  transition: box-shadow 60ms, background 60ms;
+  transition: box-shadow 120ms ease, background 120ms ease;
+}
+.row-drop-above td { box-shadow: inset 0  3px 0 0 var(--accent) !important; }
+.row-drop-below td { box-shadow: inset 0 -3px 0 0 var(--accent) !important; }
+
+/* Custom drag preview pill (set via setDragImage; rendered off-screen just long
+   enough for the browser to snapshot it). */
+.drag-ghost {
+  position: absolute;
+  top: -1000px;
+  left: -1000px;
+  padding: 6px 12px;
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-sans, inherit);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-1);
+  background: var(--surface-1);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
 }
 
 /* ── Feature cell ── */
@@ -668,15 +696,17 @@ tr:hover .cb-cell input,
 /* Drag handle */
 .drag-handle {
   padding: 0 6px;
-  color: var(--fg-4);
+  /* Fade the glyph via translucent COLOR, not element opacity — opacity on the
+     <td> would make its background translucent too, letting scrolled timeline
+     cells bleed through this frozen column. */
+  color: color-mix(in srgb, var(--fg-4) 45%, transparent);
   cursor: grab;
-  opacity: 0.35;
   font-size: 14px;
   user-select: none;
   text-align: center;
-  transition: opacity 120ms;
+  transition: color 120ms;
 }
-.drag-handle:hover { opacity: 0.85; color: var(--fg-2); }
+.drag-handle:hover { color: var(--fg-2); }
 
 /* ── Effort cells ── */
 td { padding: 0; height: 34px; vertical-align: middle; }
