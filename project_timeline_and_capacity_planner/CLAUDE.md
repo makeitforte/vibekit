@@ -16,6 +16,31 @@ user first.** Don't silently fold cascade-adjacent changes into an unrelated
 feature/fix. The user has asked to be made aware proactively whenever an
 enhancement somehow touches or potentially touches this area.
 
+## MCP / direct-database access — preview before write
+
+If you're connected to this project's data via an MCP server (e.g. the
+Supabase MCP server) rather than working through the app's own UI/logic,
+**you bypass the app's business logic** — cascade recalculation, ETA
+derivation, and history logging (`planner_change_history`) do NOT run
+automatically for changes made this way.
+
+Because of that, for ANY write operation reached via MCP/direct SQL
+(insert/update/delete on `planner_projects`, `planner_tasks`,
+`planner_weekly_efforts`, `planner_resource_capacity`, or any other
+`planner_*` table):
+
+1. **Always preview the change first** — show the user exactly what will be
+   changed (table, rows, old → new values) and explicitly ask for
+   confirmation before executing the write.
+2. Never batch/execute the write in the same turn as the preview — wait for
+   an explicit go-ahead.
+3. If the change touches effort/mandays, capacity, or buffer-threshold data
+   (i.e. anything cascade-adjacent — see the section above), flag that
+   explicitly as part of the preview, since the cascade logic won't
+   auto-recalculate for direct DB writes.
+4. Prefer read-only queries by default; only reach for a write tool when the
+   user has clearly asked for a data change, and still preview it per #1.
+
 ## Data-safety constraint (still applies)
 
 User has explicitly emphasized: existing project/task/effort data must NEVER
