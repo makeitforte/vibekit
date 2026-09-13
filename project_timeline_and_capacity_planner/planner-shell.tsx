@@ -143,6 +143,11 @@ export function PlannerShell({ boardOwnerId }: PlannerShellProps = {}) {
 
   // Surfaces "someone else changed this row" conflicts from optimistic-locked updates.
   const [conflictMsg, setConflictMsg] = useState<string | null>(null);
+  // Monotonic counters so a slow/stale effort or capacity refresh can never clobber a newer edit
+  // (previously the "last response to land" won, regardless of which write actually committed last —
+  // this is what made effort/capacity cells sometimes appear to revert and need retyping).
+  const effortSeqRef = useRef(0);
+  const capacitySeqRef = useRef(0);
   useEffect(() => {
     if (!conflictMsg) return;
     const t = setTimeout(() => setConflictMsg(null), 6000);
@@ -299,24 +304,64 @@ export function PlannerShell({ boardOwnerId }: PlannerShellProps = {}) {
     oldMandays: number,
   ) => {
     if (!userId || !boardId) return;
-    await upsertEffort(taskId, roleId, boardId, weekStart, mandays);
-    const efforts = await fetchWeeklyEfforts(boardId);
-    dispatch({ type: "SET_EFFORTS", efforts });
-    if (mandays !== oldMandays) {
-      const task = state.tasks.find(t => t.id === taskId);
-      const role = state.roles.find(r => r.id === roleId);
-      await addHistory(userId, boardId, {
-        project_id: task?.project_id,
-        task_id: taskId,
-        change_type: "mandays_change",
-        field_name: `${role?.name ?? roleId} · ${formatWeekRange(weekStart)}`,
-        old_value: String(oldMandays),
-        new_value: String(mandays),
-      });
-      const history = await fetchHistory(boardId);
-      dispatch({ type: "SET_HISTORY", history });
+    if (mandays === oldMandays) return; // nothing changed — skip the write/refetch entirely
+
+    const mySeq = ++effortSeqRef.current;
+
+    // Optimistic update — reflect the typed value immediately (same shape as handleUpsertCapacity below),
+    // instead of waiting for a full board round-trip before the cell shows the new number.
+    const optimisticEfforts: WeeklyEffort[] = [];
+    for (const [tId, roleMap] of Object.entries(state.effortMap)) {
+      for (const [rId, weekMap] of Object.entries(roleMap)) {
+        for (const [wStart, md] of Object.entries(weekMap)) {
+          if (tId === taskId && rId === roleId && wStart === weekStart) continue;
+          optimisticEfforts.push({
+            id: `${tId}-${rId}-${wStart}`, task_id: tId, role_id: rId, user_id: boardId,
+            week_start: wStart, mandays: md, created_at: "", updated_at: "",
+          });
+        }
+      }
     }
-  }, [userId, boardId, state.tasks, state.roles]);
+    if (mandays > 0) {
+      optimisticEfforts.push({
+        id: `tmp-${taskId}-${roleId}-${weekStart}`, task_id: taskId, role_id: roleId,
+        user_id: boardId, week_start: weekStart, mandays, created_at: "", updated_at: "",
+      });
+    }
+    dispatch({ type: "SET_EFFORTS", efforts: optimisticEfforts });
+
+    try {
+      await upsertEffort(taskId, roleId, boardId, weekStart, mandays);
+    } catch (e) {
+      // Write failed — only roll back if a newer edit hasn't already superseded this one.
+      if (mySeq === effortSeqRef.current) {
+        dispatch({ type: "SET_EFFORTS", efforts: await fetchWeeklyEfforts(boardId) });
+      }
+      setConflictMsg("Couldn't save that effort value — please try again.");
+      console.error("upsertEffort failed", e);
+      return;
+    }
+
+    // Authoritative refresh — but only apply it if no newer edit has started meanwhile,
+    // so a slow response can't stomp a value the user has since changed again.
+    const efforts = await fetchWeeklyEfforts(boardId);
+    if (mySeq === effortSeqRef.current) {
+      dispatch({ type: "SET_EFFORTS", efforts });
+    }
+
+    const task = state.tasks.find(t => t.id === taskId);
+    const role = state.roles.find(r => r.id === roleId);
+    await addHistory(userId, boardId, {
+      project_id: task?.project_id,
+      task_id: taskId,
+      change_type: "mandays_change",
+      field_name: `${role?.name ?? roleId} · ${formatWeekRange(weekStart)}`,
+      old_value: String(oldMandays),
+      new_value: String(mandays),
+    });
+    const history = await fetchHistory(boardId);
+    dispatch({ type: "SET_HISTORY", history });
+  }, [userId, boardId, state.tasks, state.roles, state.effortMap]);
 
   const handleUpsertCapacity = useCallback(async (
     roleId: string,
@@ -326,6 +371,9 @@ export function PlannerShell({ boardOwnerId }: PlannerShellProps = {}) {
   ) => {
     if (!userId || !boardId) return;
     const old = state.capacityMap[roleId]?.[weekStart]?.[field] ?? 0;
+    if (value === old) return; // nothing changed — skip the write/refetch entirely
+
+    const mySeq = ++capacitySeqRef.current;
 
     // Optimistic update — build updated capacities array immediately
     const existingEntry: ResourceCapacity = state.capacityMap[roleId]?.[weekStart] ?? {
@@ -340,21 +388,34 @@ export function PlannerShell({ boardOwnerId }: PlannerShellProps = {}) {
       .filter(c => !(c.role_id === roleId && c.week_start === weekStart));
     dispatch({ type: "SET_CAPACITIES", capacities: [...allCaps, updatedEntry] });
 
-    // Persist to DB
-    await upsertCapacity(boardId, roleId, weekStart, { [field]: value });
-    const capacities = await fetchResourceCapacity(boardId);
-    dispatch({ type: "SET_CAPACITIES", capacities });
-    if (value !== old) {
-      const role = state.roles.find(r => r.id === roleId);
-      await addHistory(userId, boardId, {
-        change_type: "capacity_change",
-        field_name: `${field} · ${role?.name ?? roleId} · ${formatWeekRange(weekStart)}`,
-        old_value: String(old),
-        new_value: String(value),
-      });
-      const history = await fetchHistory(boardId);
-      dispatch({ type: "SET_HISTORY", history });
+    try {
+      await upsertCapacity(boardId, roleId, weekStart, { [field]: value });
+    } catch (e) {
+      // Write failed — only roll back if a newer edit hasn't already superseded this one.
+      if (mySeq === capacitySeqRef.current) {
+        dispatch({ type: "SET_CAPACITIES", capacities: await fetchResourceCapacity(boardId) });
+      }
+      setConflictMsg("Couldn't save that capacity value — please try again.");
+      console.error("upsertCapacity failed", e);
+      return;
     }
+
+    // Authoritative refresh — but only apply it if no newer edit has started meanwhile,
+    // so a slow response can't stomp a value the user has since changed again.
+    const capacities = await fetchResourceCapacity(boardId);
+    if (mySeq === capacitySeqRef.current) {
+      dispatch({ type: "SET_CAPACITIES", capacities });
+    }
+
+    const role = state.roles.find(r => r.id === roleId);
+    await addHistory(userId, boardId, {
+      change_type: "capacity_change",
+      field_name: `${field} · ${role?.name ?? roleId} · ${formatWeekRange(weekStart)}`,
+      old_value: String(old),
+      new_value: String(value),
+    });
+    const history = await fetchHistory(boardId);
+    dispatch({ type: "SET_HISTORY", history });
   }, [userId, boardId, state.capacityMap, state.roles]);
 
   const handleDeleteProject = useCallback(async (id: string) => {
